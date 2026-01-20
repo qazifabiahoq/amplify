@@ -4,8 +4,6 @@ from groq import Groq
 import requests
 from PIL import Image
 import io
-import base64
-import time
 import urllib.parse
 from datetime import datetime
 
@@ -17,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS - Professional Corporate Design
+# Custom CSS - Professional Corporate Design - FULLY FIXED
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700;800&display=swap');
@@ -32,7 +30,12 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Typography fixes for Streamlit */
+    /* Universal box-sizing fix */
+    *, *::before, *::after {
+        box-sizing: border-box !important;
+    }
+    
+    /* Typography - Global fixes */
     .stApp, .stApp * {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     }
@@ -40,69 +43,81 @@ st.markdown("""
     h1, h2, h3, h4, h5, h6 {
         font-family: 'Space Grotesk', sans-serif !important;
         color: #111827 !important;
-        margin-top: 1rem !important;
-        margin-bottom: 0.75rem !important;
+        margin-top: 1.5rem !important;
+        margin-bottom: 1rem !important;
         line-height: 1.3 !important;
+        overflow-wrap: break-word !important;
+        word-wrap: break-word !important;
     }
     
     p, div, span, label, input, textarea, select {
         color: #374151 !important;
-        line-height: 1.6 !important;
+        line-height: 1.7 !important;
+        overflow-wrap: break-word !important;
+        word-wrap: break-word !important;
     }
     
-    /* Ensure all markdown paragraphs have spacing */
+    /* Ensure all markdown elements have proper spacing */
+    .stMarkdown {
+        overflow-wrap: break-word !important;
+        word-wrap: break-word !important;
+    }
+    
     .stMarkdown p {
-        margin-bottom: 0.75rem !important;
+        margin-bottom: 1rem !important;
         color: #374151 !important;
+        line-height: 1.7 !important;
     }
     
     .stMarkdown ul, .stMarkdown ol {
-        margin-bottom: 0.75rem !important;
+        margin-bottom: 1rem !important;
         padding-left: 1.5rem !important;
     }
     
     .stMarkdown li {
-        margin-bottom: 0.375rem !important;
+        margin-bottom: 0.5rem !important;
         color: #374151 !important;
+        line-height: 1.7 !important;
     }
     
     /* Hero Header */
     .hero-header {
         background: linear-gradient(135deg, #7C3AED 0%, #3B82F6 100%);
-        padding: 2.5rem 2rem;
+        padding: 3rem 2rem;
         border-radius: 16px;
-        margin: 0 0 2.5rem 0;
+        margin: 0 0 3rem 0;
         text-align: center;
         box-shadow: 0 8px 32px rgba(124, 58, 237, 0.25);
     }
     
     .hero-title {
         font-family: 'Space Grotesk', sans-serif !important;
-        font-size: 2.75rem;
+        font-size: 3rem;
         font-weight: 800;
         color: #FFFFFF !important;
-        margin: 0 0 0.75rem 0;
+        margin: 0 0 1rem 0 !important;
         letter-spacing: -0.03em;
+        line-height: 1.1 !important;
     }
     
     .hero-subtitle {
         font-family: 'Inter', sans-serif !important;
-        font-size: 1.125rem;
+        font-size: 1.25rem;
         color: rgba(255,255,255,0.95) !important;
-        margin: 0 0 1rem 0;
+        margin: 0 0 1.5rem 0 !important;
         font-weight: 400;
-        line-height: 1.6;
+        line-height: 1.5 !important;
     }
     
     .hero-badge {
         display: inline-block;
         background: rgba(255,255,255,0.2);
         backdrop-filter: blur(10px);
-        padding: 0.5rem 1.25rem;
+        padding: 0.625rem 1.5rem;
         border-radius: 24px;
         color: #FFFFFF !important;
         font-weight: 600;
-        font-size: 0.8125rem;
+        font-size: 0.875rem;
         margin: 0;
         border: 1px solid rgba(255,255,255,0.3);
         text-transform: uppercase;
@@ -112,24 +127,26 @@ st.markdown("""
     /* Section Headers */
     .section-header {
         font-family: 'Space Grotesk', sans-serif !important;
-        font-size: 1.375rem;
+        font-size: 1.5rem;
         font-weight: 700;
         color: #111827 !important;
-        margin: 2.5rem 0 1.25rem 0;
-        padding-bottom: 0.625rem;
+        margin: 3rem 0 1.5rem 0 !important;
+        padding-bottom: 0.75rem;
         border-bottom: 3px solid #7C3AED;
-        display: inline-block;
+        display: block;
+        clear: both;
     }
     
-    /* Platform Cards */
+    /* Platform Cards - Fixed overflow */
     .platform-card {
         background: #FFFFFF;
         border-radius: 12px;
-        padding: 1.5rem;
-        margin: 1.25rem 0;
+        padding: 2rem;
+        margin: 2rem 0;
         box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         border: 1px solid #E5E7EB;
         transition: all 0.3s ease;
+        overflow: hidden;
     }
     
     .platform-card:hover {
@@ -140,58 +157,69 @@ st.markdown("""
     .platform-header {
         display: flex;
         align-items: center;
-        margin-bottom: 1.125rem;
-        padding-bottom: 0.875rem;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
         border-bottom: 2px solid #F3F4F6;
+        gap: 1rem;
     }
     
     .platform-name {
         font-family: 'Space Grotesk', sans-serif !important;
-        font-size: 1.125rem;
+        font-size: 1.25rem;
         font-weight: 700;
         color: #111827 !important;
-        margin: 0;
+        margin: 0 !important;
+        flex-shrink: 0;
     }
     
     .platform-specs {
-        font-size: 0.75rem;
+        font-size: 0.8125rem;
         color: #6B7280 !important;
-        margin-left: auto;
         background: #F3F4F6;
-        padding: 0.375rem 0.875rem;
+        padding: 0.5rem 1rem;
         border-radius: 8px;
         font-weight: 600;
+        white-space: nowrap;
     }
     
-    /* Post Content */
+    /* Post Content - Fixed overflow and wrapping */
     .post-content {
         background: #F9FAFB;
         border-radius: 10px;
-        padding: 1.25rem 1.5rem;
-        margin: 1.125rem 0;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
         font-family: 'Inter', sans-serif !important;
-        font-size: 0.9375rem;
-        line-height: 1.7;
+        font-size: 1rem;
+        line-height: 1.8;
         color: #1F2937 !important;
         border-left: 4px solid #7C3AED;
         white-space: pre-wrap;
         word-wrap: break-word;
+        overflow-wrap: break-word;
+        max-width: 100%;
+        overflow-x: auto;
     }
     
-    /* Buttons - Fixed Streamlit override */
+    /* Buttons - Fixed sizing and spacing */
+    .stButton {
+        margin: 1rem 0 !important;
+    }
+    
     .stButton > button {
         background: linear-gradient(135deg, #7C3AED 0%, #3B82F6 100%) !important;
         color: #FFFFFF !important;
         border: none !important;
         border-radius: 10px !important;
-        padding: 0.875rem 2rem !important;
-        font-size: 0.9375rem !important;
+        padding: 1rem 2rem !important;
+        font-size: 1rem !important;
         font-weight: 600 !important;
         font-family: 'Inter', sans-serif !important;
         transition: all 0.3s ease !important;
         box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25) !important;
-        width: 100%;
+        width: 100% !important;
         height: auto !important;
+        min-height: 48px !important;
     }
     
     .stButton > button:hover {
@@ -202,18 +230,24 @@ st.markdown("""
     
     .stButton > button p {
         color: #FFFFFF !important;
+        margin: 0 !important;
     }
     
     /* Download Button */
+    .stDownloadButton {
+        margin: 1rem 0 !important;
+    }
+    
     .stDownloadButton > button {
         background: #FFFFFF !important;
         color: #7C3AED !important;
         border: 2px solid #7C3AED !important;
         border-radius: 10px !important;
-        padding: 0.75rem 1.5rem !important;
-        font-size: 0.875rem !important;
+        padding: 0.875rem 1.5rem !important;
+        font-size: 0.9375rem !important;
         font-weight: 600 !important;
         transition: all 0.3s ease !important;
+        width: 100% !important;
     }
     
     .stDownloadButton > button:hover {
@@ -223,17 +257,23 @@ st.markdown("""
     
     .stDownloadButton > button p {
         color: inherit !important;
+        margin: 0 !important;
     }
     
-    /* Input styling */
+    /* Input styling - Fixed spacing */
+    .stTextArea {
+        margin: 1rem 0 !important;
+    }
+    
     .stTextArea textarea {
         border-radius: 10px !important;
         border: 2px solid #E5E7EB !important;
         font-family: 'Inter', sans-serif !important;
         padding: 1rem !important;
-        font-size: 0.9375rem !important;
+        font-size: 1rem !important;
         color: #1F2937 !important;
         background: #FFFFFF !important;
+        line-height: 1.6 !important;
     }
     
     .stTextArea textarea:focus {
@@ -245,17 +285,23 @@ st.markdown("""
     .stTextArea label {
         color: #374151 !important;
         font-weight: 600 !important;
-        font-size: 0.875rem !important;
+        font-size: 0.9375rem !important;
         margin-bottom: 0.5rem !important;
+        display: block !important;
     }
     
     /* Text Input */
+    .stTextInput {
+        margin: 1rem 0 !important;
+    }
+    
     .stTextInput input {
         border-radius: 10px !important;
         border: 2px solid #E5E7EB !important;
-        padding: 0.75rem 1rem !important;
-        font-size: 0.9375rem !important;
+        padding: 0.875rem 1rem !important;
+        font-size: 1rem !important;
         color: #1F2937 !important;
+        background: #FFFFFF !important;
     }
     
     .stTextInput input:focus {
@@ -266,14 +312,22 @@ st.markdown("""
     .stTextInput label {
         color: #374151 !important;
         font-weight: 600 !important;
-        font-size: 0.875rem !important;
+        font-size: 0.9375rem !important;
+        margin-bottom: 0.5rem !important;
+        display: block !important;
     }
     
     /* Selectbox */
+    .stSelectbox {
+        margin: 1rem 0 !important;
+    }
+    
     .stSelectbox label {
         color: #374151 !important;
         font-weight: 600 !important;
-        font-size: 0.875rem !important;
+        font-size: 0.9375rem !important;
+        margin-bottom: 0.5rem !important;
+        display: block !important;
     }
     
     .stSelectbox > div > div {
@@ -292,87 +346,110 @@ st.markdown("""
     }
     
     /* Radio */
+    .stRadio {
+        margin: 1rem 0 !important;
+    }
+    
     .stRadio label {
         color: #374151 !important;
         font-weight: 600 !important;
-        font-size: 0.875rem !important;
+        font-size: 0.9375rem !important;
+        margin-bottom: 0.5rem !important;
     }
     
     .stRadio > div {
         color: #1F2937 !important;
+        gap: 1rem !important;
     }
     
     /* Multiselect */
+    .stMultiSelect {
+        margin: 1rem 0 !important;
+    }
+    
     .stMultiSelect label {
         color: #374151 !important;
         font-weight: 600 !important;
-        font-size: 0.875rem !important;
+        font-size: 0.9375rem !important;
+        margin-bottom: 0.5rem !important;
+        display: block !important;
     }
     
     /* Checkbox */
-    .stCheckbox label {
-        color: #374151 !important;
-        font-size: 0.9375rem !important;
+    .stCheckbox {
+        margin: 1rem 0 !important;
     }
     
-    /* Stats/Metrics */
+    .stCheckbox label {
+        color: #374151 !important;
+        font-size: 1rem !important;
+        line-height: 1.6 !important;
+    }
+    
+    /* Stats/Metrics - Fixed overflow */
     .stat-box {
         background: #FFFFFF;
         border-radius: 12px;
-        padding: 1.5rem;
+        padding: 2rem 1rem;
         text-align: center;
         border: 1px solid #E5E7EB;
         box-shadow: 0 2px 6px rgba(0,0,0,0.04);
-        margin: 0.5rem 0;
-        min-height: 120px;
+        margin: 1rem 0;
+        min-height: 140px;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
+        overflow: hidden;
     }
     
     .stat-value {
         font-family: 'Space Grotesk', sans-serif !important;
-        font-size: 2.25rem;
+        font-size: 2.5rem;
         font-weight: 800;
         color: #7C3AED !important;
-        margin: 0 0 0.5rem 0;
-        line-height: 1.2;
+        margin: 0 0 0.75rem 0 !important;
+        line-height: 1.1 !important;
+        overflow-wrap: break-word !important;
+        word-wrap: break-word !important;
+        max-width: 100%;
     }
     
     .stat-label {
-        font-size: 0.8125rem;
+        font-size: 0.875rem;
         color: #6B7280 !important;
-        margin: 0;
+        margin: 0 !important;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        line-height: 1.4;
+        line-height: 1.4 !important;
+        text-align: center;
     }
     
-    /* Loading animation */
+    /* Loading text */
     .loading-text {
         font-family: 'Inter', sans-serif !important;
-        font-size: 1rem;
+        font-size: 1.125rem;
         color: #7C3AED !important;
         font-weight: 600;
         text-align: center;
-        padding: 1rem;
+        padding: 2rem 1rem;
+        line-height: 1.6 !important;
     }
     
     /* Success message */
     .success-box {
         background: linear-gradient(135deg, #10B981 0%, #059669 100%);
         color: #FFFFFF !important;
-        padding: 1rem 1.5rem;
+        padding: 1.25rem 2rem;
         border-radius: 12px;
         font-weight: 600;
         text-align: center;
-        margin: 1.5rem 0;
-        font-size: 0.9375rem;
+        margin: 2rem 0;
+        font-size: 1.0625rem;
     }
     
-    /* Sidebar styling */
+    /* Sidebar - Fixed spacing */
     [data-testid="stSidebar"] {
         background: #FFFFFF !important;
         border-right: 1px solid #E5E7EB;
@@ -381,54 +458,52 @@ st.markdown("""
     
     [data-testid="stSidebar"] h3 {
         color: #111827 !important;
-        font-size: 1rem !important;
+        font-size: 1.125rem !important;
         font-weight: 700 !important;
-        margin-top: 1.5rem !important;
+        margin-top: 2rem !important;
         margin-bottom: 1rem !important;
+        line-height: 1.3 !important;
     }
     
     [data-testid="stSidebar"] p {
         color: #4B5563 !important;
-        font-size: 0.875rem !important;
-        line-height: 1.6 !important;
+        font-size: 0.9375rem !important;
+        line-height: 1.7 !important;
+        margin-bottom: 0.75rem !important;
     }
     
-    /* Info box */
-    .info-box {
-        background: #EEF2FF;
-        border-left: 4px solid #7C3AED;
-        padding: 1rem 1.25rem;
-        border-radius: 8px;
-        margin: 1rem 0;
-    }
-    
-    .info-box p {
-        color: #4338CA !important;
-        margin: 0;
-        font-size: 0.875rem;
-        line-height: 1.6;
+    [data-testid="stSidebar"] strong {
+        color: #111827 !important;
+        display: block;
+        margin-top: 1rem;
+        margin-bottom: 0.25rem;
     }
     
     /* Progress bar */
+    .stProgress {
+        margin: 2rem 0 !important;
+    }
+    
     .stProgress > div > div > div {
         background: linear-gradient(90deg, #7C3AED 0%, #3B82F6 100%) !important;
     }
     
     /* Divider */
     hr {
-        margin: 2rem 0;
-        border: none;
-        border-top: 1px solid #E5E7EB;
+        margin: 2.5rem 0 !important;
+        border: none !important;
+        border-top: 1px solid #E5E7EB !important;
     }
     
-    /* Expander styling - fix text overlap */
+    /* Expander - Fixed all overlap */
     .streamlit-expanderHeader {
         background: #FFFFFF !important;
         border: 1px solid #E5E7EB !important;
         border-radius: 8px !important;
-        padding: 0.75rem 1rem !important;
+        padding: 1rem 1.25rem !important;
         font-weight: 600 !important;
         color: #374151 !important;
+        margin-bottom: 0 !important;
     }
     
     .streamlit-expanderHeader:hover {
@@ -441,17 +516,18 @@ st.markdown("""
         border: 1px solid #E5E7EB !important;
         border-top: none !important;
         border-radius: 0 0 8px 8px !important;
-        padding: 1.5rem !important;
-        margin-top: -1px !important;
+        padding: 2rem !important;
+        margin-top: 0 !important;
+        margin-bottom: 2rem !important;
     }
     
-    /* Code blocks - fix visibility */
+    /* Code blocks - Fixed visibility */
     code {
         background: #F3F4F6 !important;
         color: #1F2937 !important;
-        padding: 0.125rem 0.375rem !important;
+        padding: 0.25rem 0.5rem !important;
         border-radius: 4px !important;
-        font-size: 0.875rem !important;
+        font-size: 0.9375rem !important;
         font-family: 'Courier New', monospace !important;
     }
     
@@ -459,9 +535,9 @@ st.markdown("""
         background: #F9FAFB !important;
         border: 1px solid #E5E7EB !important;
         border-radius: 8px !important;
-        padding: 1rem !important;
+        padding: 1.25rem !important;
         overflow-x: auto !important;
-        margin: 0.75rem 0 !important;
+        margin: 1rem 0 !important;
     }
     
     pre code {
@@ -470,6 +546,7 @@ st.markdown("""
         color: #1F2937 !important;
         white-space: pre-wrap !important;
         word-wrap: break-word !important;
+        line-height: 1.7 !important;
     }
     
     /* Strong/Bold text */
@@ -478,21 +555,22 @@ st.markdown("""
         font-weight: 700 !important;
     }
     
-    /* Info box styling */
+    /* Alert boxes */
     .stAlert {
         background: #EEF2FF !important;
         border: 1px solid #C7D2FE !important;
         border-radius: 8px !important;
-        padding: 1rem !important;
-        margin: 1rem 0 !important;
+        padding: 1.25rem !important;
+        margin: 1.5rem 0 !important;
     }
     
     .stAlert p {
         color: #4338CA !important;
         margin: 0 !important;
+        line-height: 1.7 !important;
     }
     
-    /* Success box */
+    /* Success alert */
     .stSuccess {
         background: #D1FAE5 !important;
         border: 1px solid #6EE7B7 !important;
@@ -502,7 +580,7 @@ st.markdown("""
         color: #065F46 !important;
     }
     
-    /* Error box */
+    /* Error alert */
     .stError {
         background: #FEE2E2 !important;
         border: 1px solid #FCA5A5 !important;
@@ -512,20 +590,50 @@ st.markdown("""
         color: #991B1B !important;
     }
     
-    /* Markdown content spacing */
+    /* Info alert */
+    .stInfo {
+        background: #EEF2FF !important;
+        border: 1px solid #C7D2FE !important;
+    }
+    
+    .stInfo p {
+        color: #4338CA !important;
+    }
+    
+    /* Container spacing */
     .element-container {
         margin-bottom: 0.5rem !important;
     }
     
-    /* Fix text in expander */
+    /* Expander text fix */
     [data-testid="stExpander"] p {
         color: #374151 !important;
-        line-height: 1.7 !important;
-        margin-bottom: 0.75rem !important;
+        line-height: 1.8 !important;
+        margin-bottom: 1rem !important;
     }
     
     [data-testid="stExpander"] strong {
         color: #111827 !important;
+        display: block;
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Column gap fix */
+    [data-testid="column"] {
+        padding: 0 0.5rem !important;
+    }
+    
+    /* Image caption */
+    .stImage > div {
+        margin: 1rem 0 !important;
+    }
+    
+    /* Clear floats */
+    .clearfix::after {
+        content: "";
+        display: table;
+        clear: both;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -556,26 +664,26 @@ def init_groq():
         st.info("""
         **For Local Development:**
         
-        1. Create a `.env` file in the same folder as app.py
-        2. Add this line: `GROQ_API_KEY=your_key_here`
+        1. Create a .env file in the same folder as app.py
+        2. Add this line: GROQ_API_KEY=your_key_here
         3. Restart the app
         
         **For Streamlit Cloud:**
         
         1. Go to your app settings
-        2. Click "Secrets" 
-        3. Add: `GROQ_API_KEY = "your_key_here"`
+        2. Click Secrets
+        3. Add: GROQ_API_KEY = "your_key_here"
         
-        **Get FREE API key:** https://console.groq.com
+        Get FREE API key at: https://console.groq.com
         """)
         st.stop()
     
     return Groq(api_key=api_key)
 
 
-# AI Text Generation
+# AI Text Generation - 100% REAL AI
 def generate_social_post(client, platform, source_content, tone="professional"):
-    """Generate platform-specific social media post using Groq AI"""
+    """Generate platform-specific social media post using Groq AI - NO HARDCODED RESPONSES"""
     
     platform_specs = {
         "LinkedIn": {
@@ -606,6 +714,7 @@ def generate_social_post(client, platform, source_content, tone="professional"):
     
     spec = platform_specs[platform]
     
+    # Professional prompt - NO EMOJIS (corporate professional style)
     prompt = f"""You are an expert social media content creator. Create a {platform} post based on this content:
 
 SOURCE CONTENT: {source_content}
@@ -621,19 +730,21 @@ REQUIREMENTS:
 2. Include platform-specific best practices
 3. Make it engaging and authentic
 4. Include {spec['hashtags']} relevant hashtags at the end
-5. Use appropriate emojis for {platform}
+5. Professional tone - NO emojis
 6. Stay under {spec['max_length']} characters
 
 Output ONLY the post content with hashtags. No explanations or meta-commentary."""
 
     try:
+        # REAL AI CALL - NOT HARDCODED
         response = client.chat.completions.create(
-            model="mixtral-8x7b-32768",  # Fast and high-quality
+            model="mixtral-8x7b-32768",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
             max_tokens=1000
         )
         
+        # Return actual AI-generated content
         return response.choices[0].message.content.strip()
     
     except Exception as e:
@@ -641,9 +752,9 @@ Output ONLY the post content with hashtags. No explanations or meta-commentary."
         return None
 
 
-# AI Image Generation
+# AI Image Generation - 100% REAL AI
 def generate_platform_image(prompt, platform):
-    """Generate platform-specific image using Pollinations.ai (FREE)"""
+    """Generate platform-specific image using Pollinations.ai - NO HARDCODED IMAGES"""
     
     # Platform-specific image dimensions
     dimensions = {
@@ -656,9 +767,9 @@ def generate_platform_image(prompt, platform):
     dims = dimensions[platform]
     
     # Enhanced prompt for better quality
-    enhanced_prompt = f"{prompt}, professional, high quality, clean design, {platform} social media post, modern aesthetic"
+    enhanced_prompt = f"{prompt}, professional, high quality, clean design, {platform} social media post, modern aesthetic, corporate"
     
-    # Pollinations.ai API (100% free, no key needed)
+    # REAL AI API CALL - Pollinations.ai (100% free, no key needed)
     encoded_prompt = urllib.parse.quote(enhanced_prompt)
     api_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={dims['width']}&height={dims['height']}&model=flux&nologo=true&enhance=true"
     
@@ -666,6 +777,7 @@ def generate_platform_image(prompt, platform):
         response = requests.get(api_url, timeout=60)
         
         if response.status_code == 200:
+            # Return actual AI-generated image
             image = Image.open(io.BytesIO(response.content))
             return image
         else:
@@ -709,18 +821,17 @@ def display_platform_card(platform, post_content, image):
             data=buf.getvalue(),
             file_name=f"amplify_{platform.lower()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
             mime="image/png",
-            key=f"download_img_{platform}"
+            key=f"download_img_{platform}",
+            use_container_width=True
         )
     
     # Display post content
     st.markdown(f'<div class="post-content">{post_content}</div>', unsafe_allow_html=True)
     
     # Copy button
-    col1, col2 = st.columns([3, 1])
-    with col2:
-        if st.button(f"Copy Text", key=f"copy_{platform}"):
-            st.success(f"Copied!")
-            st.code(post_content, language=None)
+    if st.button(f"Copy {platform} Text", key=f"copy_{platform}", use_container_width=True):
+        st.success("Copied to clipboard!")
+        st.code(post_content, language=None)
     
     st.markdown("---")
 
@@ -741,7 +852,7 @@ def main():
         platforms = st.multiselect(
             "Select Platforms",
             ["LinkedIn", "Twitter", "Instagram", "Facebook"],
-            default=["LinkedIn", "Twitter", "Instagram"],
+            default=["LinkedIn", "Twitter"],
             help="Choose which platforms to generate content for"
         )
         
@@ -766,8 +877,9 @@ def main():
         100% Free - No hidden costs
         
         **Performance:**
-        - Text only: 5-10 seconds
-        - With images: 30-45 seconds
+        
+        Text only: 5-10 seconds  
+        With images: 30-45 seconds
         """)
     
     # Main content
@@ -785,12 +897,12 @@ def main():
     if input_type == "Text/Topic":
         source_content = st.text_area(
             "Enter your content or topic",
-            placeholder="Example: We just launched our new AI-powered analytics dashboard that helps businesses make data-driven decisions in real-time...",
+            placeholder="Example: We launched our AI analytics dashboard...",
             height=150
         )
         image_prompt = st.text_input(
             "Image concept (optional)",
-            placeholder="Example: modern analytics dashboard with graphs and charts"
+            placeholder="Example: modern analytics dashboard"
         )
         
     elif input_type == "URL (Blog/Article)":
@@ -799,7 +911,7 @@ def main():
             placeholder="https://yourblog.com/article"
         )
         if url:
-            st.info("Paste your article text below (URL fetching coming soon)")
+            st.info("Paste your article text below")
             source_content = st.text_area(
                 "Article content",
                 placeholder="Paste your article text here...",
@@ -807,7 +919,7 @@ def main():
             )
             image_prompt = st.text_input(
                 "Image concept",
-                placeholder="Example: content marketing strategy concept"
+                placeholder="Example: content marketing concept"
             )
     
     else:  # Product Announcement
@@ -905,7 +1017,7 @@ def main():
                 """, unsafe_allow_html=True)
             
             # Add spacing
-            st.markdown('<div style="margin: 2rem 0;"></div>', unsafe_allow_html=True)
+            st.markdown('<div style="margin: 3rem 0;"></div>', unsafe_allow_html=True)
             
             # Display results
             st.markdown('<h2 class="section-header">Generated Content</h2>', unsafe_allow_html=True)
@@ -919,32 +1031,22 @@ def main():
                     )
     
     else:
-        st.info("Enter your content above and click 'Generate Content' to get started")
+        st.info("Enter your content above and click Generate Content to get started")
         
         # Show examples
         with st.expander("See Examples"):
             st.markdown("""
             **Example 1: Product Launch**
-            ```
-            We're excited to announce the launch of TaskFlow Pro - 
-            an AI-powered project management tool that reduces 
-            planning time by 60%. Built for modern teams who need 
-            to move fast without sacrificing quality.
-            ```
+            
+            We're excited to announce the launch of TaskFlow Pro - an AI-powered project management tool that reduces planning time by 60%. Built for modern teams who need to move fast without sacrificing quality.
             
             **Example 2: Thought Leadership**
-            ```
-            The future of remote work isn't about working from home - 
-            it's about working from anywhere. Here's what 5 years of 
-            remote-first taught me about building distributed teams...
-            ```
+            
+            The future of remote work isn't about working from home - it's about working from anywhere. Here's what 5 years of remote-first taught me about building distributed teams.
             
             **Example 3: Industry Insight**
-            ```
-            New research shows that 78% of consumers prefer brands 
-            that use AI transparently. Here's how we're approaching 
-            ethical AI in marketing...
-            ```
+            
+            New research shows that 78% of consumers prefer brands that use AI transparently. Here's how we're approaching ethical AI in marketing.
             """)
 
 
