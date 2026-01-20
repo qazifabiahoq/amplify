@@ -605,11 +605,8 @@ def main():
             help="How should your posts sound?"
         )
         
-        generate_images = st.checkbox(
-            "Include Images",
-            value=False,
-            help="⚠️ Takes 1-4 minutes longer. Uncheck for instant results."
-        )
+        # Always generate images - no checkbox
+        generate_images = True
         
         st.markdown("---")
         st.markdown("### How It Works")
@@ -620,11 +617,10 @@ def main():
         
         3️⃣ Click Generate 
         
-        4️⃣ Get ready-to-post content!
+        4️⃣ Get ready-to-post content with images!
         
-        **Speed:**  
-        • Without images: 10-20 seconds  
-        • With images: 1-4 minutes
+        **Generation Time:**  
+        • 1-4 minutes (includes AI images)
         
         💡 **100% Free**
         """)
