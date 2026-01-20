@@ -6,7 +6,6 @@ from PIL import Image
 import io
 import urllib.parse
 from datetime import datetime
-import base64
 
 # Page config
 st.set_page_config(
@@ -353,43 +352,6 @@ def init_groq():
     return Groq(api_key=api_key)
 
 
-def analyze_image_with_vision(client, image):
-    """Analyze uploaded image using Groq Vision AI - 100% FREE"""
-    try:
-        # Convert image to base64
-        buffered = io.BytesIO()
-        image.save(buffered, format="PNG")
-        img_base64 = base64.b64encode(buffered.getvalue()).decode()
-        
-        # Use current Groq vision model
-        response = client.chat.completions.create(
-            model="llama-3.2-11b-vision-preview",  # Current working model
-            messages=[{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{img_base64}"
-                        }
-                    },
-                    {
-                        "type": "text",
-                        "text": "Analyze this image and describe what you see. Focus on: the main subject, setting, mood, colors, and any text visible. Provide a detailed description that could be used for social media content creation."
-                    }
-                ]
-            }],
-            temperature=0.7,
-            max_tokens=500
-        )
-        
-        return response.choices[0].message.content.strip()
-    
-    except Exception as e:
-        st.error(f"Vision analysis error: {str(e)}")
-        return None
-
-
 def generate_social_post(client, platform, source_content, tone="professional"):
     """Generate platform-specific post using Groq AI"""
     
@@ -565,7 +527,7 @@ def main():
         st.markdown("""
         **Text:** Groq Llama-3.3-70B  
         **Images:** Pollinations.ai Flux  
-        **Vision:** Groq Llama-3.2-11B Vision
+        **Upload:** Manual description
         
         **Cost:** 100% Free
         
@@ -601,24 +563,28 @@ def main():
         uploaded_file = st.file_uploader(
             "Upload an image",
             type=["jpg", "jpeg", "png"],
-            help="Upload a photo and AI will analyze it to generate content"
+            help="Upload a photo to generate content"
         )
         
         if uploaded_file:
             image = Image.open(uploaded_file)
             st.image(image, caption="Uploaded Image", use_container_width=True)
             
-            with st.spinner("Analyzing image with AI..."):
-                client = init_groq()
-                vision_analysis = analyze_image_with_vision(client, image)
-                
-                if vision_analysis:
-                    st.success("Image analyzed successfully!")
-                    with st.expander("View AI Analysis"):
-                        st.write(vision_analysis)
-                    
-                    source_content = f"Based on this image: {vision_analysis}"
-                    image_prompt = vision_analysis[:200]
+            st.info("Describe what's in this image so we can generate great content!")
+            
+            manual_description = st.text_area(
+                "Image description",
+                placeholder="Example: A team of 5 people celebrating in a modern office, holding champagne glasses, with confetti in the air. The mood is joyful and energetic.",
+                height=100,
+                help="Describe what's in the image - AI will use this to create posts"
+            )
+            
+            if manual_description:
+                source_content = f"Based on this image: {manual_description}"
+                image_prompt = manual_description[:200]
+            else:
+                st.warning("Please describe the image above to continue")
+                source_content = None
     
     else:  # Product Announcement
         product_name = st.text_input("Product Name")
