@@ -6,7 +6,6 @@ from PIL import Image
 import io
 import urllib.parse
 from datetime import datetime
-import time
 
 # Page config
 st.set_page_config(
@@ -338,69 +337,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-def analyze_image_with_vision(image):
-    """Analyze uploaded image using FREE Hugging Face Vision API with retries"""
-    
-    # Try multiple models in order of preference
-    models = [
-        "nlpconnect/vit-gpt2-image-captioning",  # Faster, less busy
-        "Salesforce/blip-image-captioning-base",  # Smaller than large
-        "Salesforce/blip-image-captioning-large"  # Most accurate but busiest
-    ]
-    
-    for model_name in models:
-        try:
-            # Convert image to bytes
-            buffered = io.BytesIO()
-            image.save(buffered, format="PNG")
-            img_bytes = buffered.getvalue()
-            
-            API_URL = f"https://api-inference.huggingface.co/models/{model_name}"
-            
-            # Try 3 times with this model
-            for attempt in range(3):
-                try:
-                    response = requests.post(
-                        API_URL, 
-                        data=img_bytes, 
-                        timeout=20,
-                        headers={"Content-Type": "application/octet-stream"}
-                    )
-                    
-                    if response.status_code == 200:
-                        result = response.json()
-                        
-                        # Handle different response formats
-                        caption = None
-                        if isinstance(result, list) and len(result) > 0:
-                            caption = result[0].get('generated_text', '')
-                        elif isinstance(result, dict):
-                            caption = result.get('generated_text', '')
-                        
-                        if caption:
-                            # Enhance the caption
-                            enhanced = f"{caption.strip()}"
-                            return enhanced
-                    
-                    # If model is loading, wait and retry
-                    elif response.status_code == 503:
-                        if attempt < 2:
-                            time.sleep(3)  # Wait 3 seconds before retry
-                            continue
-                        
-                except requests.Timeout:
-                    if attempt < 2:
-                        continue
-                    
-            # If this model failed all attempts, try next model
-            continue
-            
-        except Exception as e:
-            continue
-    
-    # All models failed
-    return None
-
 
 def init_groq():
     """Initialize Groq client"""
@@ -629,56 +565,32 @@ def main():
         uploaded_file = st.file_uploader(
             "Upload an image",
             type=["jpg", "jpeg", "png"],
-            help="AI will analyze your photo and generate content"
+            help="Upload your photo as a reference"
         )
         
         if uploaded_file:
             image = Image.open(uploaded_file)
-            st.image(image, caption="Uploaded Image", use_container_width=True)
+            col1, col2 = st.columns([1, 1])
             
-            # Try auto-analysis with Hugging Face
-            analysis_status = st.empty()
-            analysis_status.info("🔍 Analyzing image with AI... (trying multiple models, may take 10-30 seconds)")
+            with col1:
+                st.image(image, caption="Your Image", use_container_width=True)
             
-            vision_analysis = analyze_image_with_vision(image)
-            analysis_status.empty()
-            
-            if vision_analysis:
-                st.success("✅ Image analyzed successfully!")
-                
-                # Show what AI saw in a nice box
-                st.markdown(f"""
-                <div style="background: #EEF2FF; border-left: 4px solid #7C3AED; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
-                    <strong style="color: #111827;">AI Description:</strong><br/>
-                    <span style="color: #374151;">{vision_analysis}</span>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Allow user to edit/enhance the description
-                enhanced_description = st.text_area(
-                    "Edit description (optional)",
-                    value=vision_analysis,
-                    height=80,
-                    help="AI analyzed your image. Edit this if needed or leave as-is."
-                )
-                
-                source_content = f"Based on this image: {enhanced_description}"
-                image_prompt = enhanced_description[:200]
-            else:
-                # Manual fallback
-                st.warning("⚠️ Auto-analysis is currently unavailable (models are busy). Please describe your image:")
+            with col2:
+                st.markdown("**Describe this image:**")
                 manual_description = st.text_area(
-                    "Image description",
-                    placeholder="Example: A laptop on a desk with coffee and notebook, clean workspace, professional setting",
-                    height=100,
-                    help="Describe what's in the image so AI can create great posts"
+                    "What should we post about?",
+                    placeholder="Example: Our team celebrating Series A funding in the office",
+                    height=150,
+                    label_visibility="collapsed",
+                    help="Look at your image and describe what content to create"
                 )
-                
-                if manual_description:
-                    source_content = f"Based on this image: {manual_description}"
-                    image_prompt = manual_description[:200]
-                else:
-                    source_content = None
+            
+            if manual_description:
+                source_content = f"Create social media content about: {manual_description}"
+                image_prompt = manual_description[:200]
+            else:
+                source_content = None
+                st.info("👆 Describe your image above to generate content")
     
     else:  # Product Announcement
         product_name = st.text_input("Product Name")
