@@ -620,33 +620,19 @@ def main():
     else:
         st.info("Enter your content and click Generate Content to get started")
         
-        # Examples
-        st.markdown("""
-        <div class="example-box">
-            <h3>Example Inputs</h3>
-            
-            <div class="example-item">
-                <div class="example-title">Product Launch</div>
-                <div class="example-text">
-                    We are excited to announce TaskFlow Pro, an AI project management tool that reduces planning time by 60 percent. Built for modern teams.
-                </div>
-            </div>
-            
-            <div class="example-item">
-                <div class="example-title">Thought Leadership</div>
-                <div class="example-text">
-                    The future of remote work is not about working from home, it is about working from anywhere. Here is what 5 years taught me.
-                </div>
-            </div>
-            
-            <div class="example-item">
-                <div class="example-title">Industry Insight</div>
-                <div class="example-text">
-                    Research shows 78 percent of consumers prefer brands that use AI transparently. Here is our approach to ethical AI.
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        # Examples - Using native Streamlit components
+        st.markdown("### Example Inputs")
+        
+        st.markdown("**Product Launch**")
+        st.write("We are excited to announce TaskFlow Pro, an AI project management tool that reduces planning time by 60 percent. Built for modern teams.")
+        st.divider()
+        
+        st.markdown("**Thought Leadership**")
+        st.write("The future of remote work is not about working from home, it is about working from anywhere. Here is what 5 years taught me.")
+        st.divider()
+        
+        st.markdown("**Industry Insight**")
+        st.write("Research shows 78 percent of consumers prefer brands that use AI transparently. Here is our approach to ethical AI.")
 
 
 if __name__ == "__main__":
