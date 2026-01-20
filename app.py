@@ -507,17 +507,27 @@ st.markdown("""
         margin-bottom: 0 !important;
         cursor: pointer !important;
         transition: all 0.2s ease !important;
+        text-decoration: underline !important;
+        text-decoration-color: transparent !important;
+        text-decoration-thickness: 2px !important;
+        text-underline-offset: 4px !important;
     }
     
     .streamlit-expanderHeader:hover {
         background: #F9FAFB !important;
         border-color: #7C3AED !important;
+        color: #7C3AED !important;
+        text-decoration-color: #7C3AED !important;
     }
     
+    /* HIDE THE ARROW ICON */
     .streamlit-expanderHeader svg {
-        color: #7C3AED !important;
-        width: 20px !important;
-        height: 20px !important;
+        display: none !important;
+    }
+    
+    /* Alternative: if SVG doesn't work, hide the parent */
+    [data-testid="stExpanderToggleIcon"] {
+        display: none !important;
     }
     
     .streamlit-expanderContent {
@@ -1050,8 +1060,8 @@ def main():
     else:
         st.info("Enter your content above and click Generate Content to get started")
         
-        # Show examples
-        with st.expander("See Examples"):
+        # Show examples - clear clickable text
+        with st.expander("Click to See Examples"):
             st.markdown("**Example 1: Product Launch**")
             st.write("We are excited to announce the launch of TaskFlow Pro, an AI-powered project management tool that reduces planning time by 60 percent. Built for modern teams who need to move fast without sacrificing quality.")
             
