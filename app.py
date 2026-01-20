@@ -6,6 +6,7 @@ from PIL import Image
 import io
 import urllib.parse
 from datetime import datetime
+import time
 
 # Page config
 st.set_page_config(
@@ -338,36 +339,67 @@ st.markdown("""
 
 
 def analyze_image_with_vision(image):
-    """Analyze uploaded image using FREE Hugging Face Vision API"""
-    try:
-        # Convert image to bytes
-        buffered = io.BytesIO()
-        image.save(buffered, format="PNG")
-        img_bytes = buffered.getvalue()
-        
-        # Use Hugging Face Inference API (FREE, no key needed!)
-        API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-large"
-        
-        response = requests.post(API_URL, data=img_bytes, timeout=30)
-        
-        if response.status_code == 200:
-            result = response.json()
-            if isinstance(result, list) and len(result) > 0:
-                caption = result[0].get('generated_text', '')
-                
-                # Enhance the caption with more detail
-                enhanced = f"Image shows: {caption}. This appears to be suitable for social media content about {caption.split()[0] if caption else 'this subject'}."
-                return enhanced
-            else:
-                st.warning("Image analysis returned unclear results. Please describe the image manually below.")
-                return None
-        else:
-            st.warning("Image analysis service is busy. Please describe the image manually below.")
-            return None
+    """Analyze uploaded image using FREE Hugging Face Vision API with retries"""
+    
+    # Try multiple models in order of preference
+    models = [
+        "nlpconnect/vit-gpt2-image-captioning",  # Faster, less busy
+        "Salesforce/blip-image-captioning-base",  # Smaller than large
+        "Salesforce/blip-image-captioning-large"  # Most accurate but busiest
+    ]
+    
+    for model_name in models:
+        try:
+            # Convert image to bytes
+            buffered = io.BytesIO()
+            image.save(buffered, format="PNG")
+            img_bytes = buffered.getvalue()
             
-    except Exception as e:
-        st.warning(f"Could not auto-analyze image. Please describe it manually below.")
-        return None
+            API_URL = f"https://api-inference.huggingface.co/models/{model_name}"
+            
+            # Try 3 times with this model
+            for attempt in range(3):
+                try:
+                    response = requests.post(
+                        API_URL, 
+                        data=img_bytes, 
+                        timeout=20,
+                        headers={"Content-Type": "application/octet-stream"}
+                    )
+                    
+                    if response.status_code == 200:
+                        result = response.json()
+                        
+                        # Handle different response formats
+                        caption = None
+                        if isinstance(result, list) and len(result) > 0:
+                            caption = result[0].get('generated_text', '')
+                        elif isinstance(result, dict):
+                            caption = result.get('generated_text', '')
+                        
+                        if caption:
+                            # Enhance the caption
+                            enhanced = f"{caption.strip()}"
+                            return enhanced
+                    
+                    # If model is loading, wait and retry
+                    elif response.status_code == 503:
+                        if attempt < 2:
+                            time.sleep(3)  # Wait 3 seconds before retry
+                            continue
+                        
+                except requests.Timeout:
+                    if attempt < 2:
+                        continue
+                    
+            # If this model failed all attempts, try next model
+            continue
+            
+        except Exception as e:
+            continue
+    
+    # All models failed
+    return None
 
 
 def init_groq():
@@ -560,14 +592,14 @@ def main():
         st.markdown("""
         **Text:** Groq Llama-3.3-70B  
         **Images:** Pollinations.ai Flux  
-        **Vision:** Hugging Face BLIP
+        **Vision:** Hugging Face (3 models)
         
         **Cost:** 100% Free
         
         **Speed:**  
         Text: 5-10s  
         Images: 30-90s  
-        Vision: 10-15s
+        Vision: 10-30s
         """)
     
     # Main content
@@ -605,31 +637,41 @@ def main():
             st.image(image, caption="Uploaded Image", use_container_width=True)
             
             # Try auto-analysis with Hugging Face
-            with st.spinner("Analyzing image with AI..."):
-                vision_analysis = analyze_image_with_vision(image)
+            analysis_status = st.empty()
+            analysis_status.info("🔍 Analyzing image with AI... (trying multiple models, may take 10-30 seconds)")
+            
+            vision_analysis = analyze_image_with_vision(image)
+            analysis_status.empty()
             
             if vision_analysis:
-                st.success("Image analyzed successfully!")
-                st.info(f"AI sees: {vision_analysis}")
+                st.success("✅ Image analyzed successfully!")
+                
+                # Show what AI saw in a nice box
+                st.markdown(f"""
+                <div style="background: #EEF2FF; border-left: 4px solid #7C3AED; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                    <strong style="color: #111827;">AI Description:</strong><br/>
+                    <span style="color: #374151;">{vision_analysis}</span>
+                </div>
+                """, unsafe_allow_html=True)
                 
                 # Allow user to edit/enhance the description
                 enhanced_description = st.text_area(
-                    "Edit AI's description (optional)",
+                    "Edit description (optional)",
                     value=vision_analysis,
-                    height=100,
-                    help="AI analyzed your image. You can edit this description to be more specific."
+                    height=80,
+                    help="AI analyzed your image. Edit this if needed or leave as-is."
                 )
                 
                 source_content = f"Based on this image: {enhanced_description}"
                 image_prompt = enhanced_description[:200]
             else:
                 # Manual fallback
-                st.warning("Auto-analysis unavailable. Please describe your image:")
+                st.warning("⚠️ Auto-analysis is currently unavailable (models are busy). Please describe your image:")
                 manual_description = st.text_area(
                     "Image description",
-                    placeholder="Example: A team celebrating in a modern office with confetti and champagne",
+                    placeholder="Example: A laptop on a desk with coffee and notebook, clean workspace, professional setting",
                     height=100,
-                    help="Describe what's in the image"
+                    help="Describe what's in the image so AI can create great posts"
                 )
                 
                 if manual_description:
