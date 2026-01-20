@@ -488,58 +488,6 @@ st.markdown("""
         background: linear-gradient(90deg, #7C3AED 0%, #3B82F6 100%) !important;
     }
     
-    /* Divider */
-    hr {
-        margin: 2.5rem 0 !important;
-        border: none !important;
-        border-top: 1px solid #E5E7EB !important;
-    }
-    
-    /* Expander - Fixed all overlap and improved styling */
-    .streamlit-expanderHeader {
-        background: #FFFFFF !important;
-        border: 2px solid #E5E7EB !important;
-        border-radius: 10px !important;
-        padding: 1.25rem 1.5rem !important;
-        font-weight: 600 !important;
-        font-size: 1rem !important;
-        color: #374151 !important;
-        margin-bottom: 0 !important;
-        cursor: pointer !important;
-        transition: all 0.2s ease !important;
-        text-decoration: underline !important;
-        text-decoration-color: transparent !important;
-        text-decoration-thickness: 2px !important;
-        text-underline-offset: 4px !important;
-    }
-    
-    .streamlit-expanderHeader:hover {
-        background: #F9FAFB !important;
-        border-color: #7C3AED !important;
-        color: #7C3AED !important;
-        text-decoration-color: #7C3AED !important;
-    }
-    
-    /* HIDE THE ARROW ICON */
-    .streamlit-expanderHeader svg {
-        display: none !important;
-    }
-    
-    /* Alternative: if SVG doesn't work, hide the parent */
-    [data-testid="stExpanderToggleIcon"] {
-        display: none !important;
-    }
-    
-    .streamlit-expanderContent {
-        background: #FFFFFF !important;
-        border: 2px solid #E5E7EB !important;
-        border-top: none !important;
-        border-radius: 0 0 10px 10px !important;
-        padding: 2rem !important;
-        margin-top: -2px !important;
-        margin-bottom: 2rem !important;
-    }
-    
     /* Code blocks - Fixed visibility */
     code {
         background: #F3F4F6 !important;
@@ -622,28 +570,6 @@ st.markdown("""
     /* Container spacing */
     .element-container {
         margin-bottom: 0.5rem !important;
-    }
-    
-    /* Expander text fix */
-    [data-testid="stExpander"] p {
-        color: #374151 !important;
-        line-height: 1.8 !important;
-        margin-bottom: 1rem !important;
-        font-size: 1rem !important;
-    }
-    
-    [data-testid="stExpander"] strong {
-        color: #111827 !important;
-        display: block;
-        margin-top: 1.5rem;
-        margin-bottom: 0.75rem;
-        font-size: 1.0625rem !important;
-    }
-    
-    [data-testid="stExpander"] hr {
-        margin: 1.5rem 0 !important;
-        border: none !important;
-        border-top: 1px solid #E5E7EB !important;
     }
     
     /* Column gap fix */
@@ -1060,20 +986,37 @@ def main():
     else:
         st.info("Enter your content above and click Generate Content to get started")
         
-        # Show examples - clear clickable text
-        with st.expander("Click to See Examples"):
-            st.markdown("**Example 1: Product Launch**")
-            st.write("We are excited to announce the launch of TaskFlow Pro, an AI-powered project management tool that reduces planning time by 60 percent. Built for modern teams who need to move fast without sacrificing quality.")
+        # Show examples in a simple box - NO EXPANDER
+        st.markdown("""
+        <div style="background: #FFFFFF; border: 2px solid #E5E7EB; border-radius: 10px; padding: 2rem; margin: 2rem 0;">
+            <h3 style="color: #111827; margin-top: 0; margin-bottom: 1.5rem; font-size: 1.125rem;">Example Inputs</h3>
             
-            st.markdown("---")
+            <div style="margin-bottom: 1.5rem;">
+                <strong style="color: #111827; display: block; margin-bottom: 0.5rem;">Example 1: Product Launch</strong>
+                <p style="color: #374151; line-height: 1.7; margin: 0;">
+                    We are excited to announce the launch of TaskFlow Pro, an AI-powered project management tool that reduces planning time by 60 percent. Built for modern teams who need to move fast without sacrificing quality.
+                </p>
+            </div>
             
-            st.markdown("**Example 2: Thought Leadership**")
-            st.write("The future of remote work is not about working from home, it is about working from anywhere. Here is what 5 years of remote-first taught me about building distributed teams.")
+            <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 1.5rem 0;">
             
-            st.markdown("---")
+            <div style="margin-bottom: 1.5rem;">
+                <strong style="color: #111827; display: block; margin-bottom: 0.5rem;">Example 2: Thought Leadership</strong>
+                <p style="color: #374151; line-height: 1.7; margin: 0;">
+                    The future of remote work is not about working from home, it is about working from anywhere. Here is what 5 years of remote-first taught me about building distributed teams.
+                </p>
+            </div>
             
-            st.markdown("**Example 3: Industry Insight**")
-            st.write("New research shows that 78 percent of consumers prefer brands that use AI transparently. Here is how we are approaching ethical AI in marketing.")
+            <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 1.5rem 0;">
+            
+            <div style="margin-bottom: 0;">
+                <strong style="color: #111827; display: block; margin-bottom: 0.5rem;">Example 3: Industry Insight</strong>
+                <p style="color: #374151; line-height: 1.7; margin: 0;">
+                    New research shows that 78 percent of consumers prefer brands that use AI transparently. Here is how we are approaching ethical AI in marketing.
+                </p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
