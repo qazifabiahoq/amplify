@@ -337,6 +337,39 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+def analyze_image_with_vision(image):
+    """Analyze uploaded image using FREE Hugging Face Vision API"""
+    try:
+        # Convert image to bytes
+        buffered = io.BytesIO()
+        image.save(buffered, format="PNG")
+        img_bytes = buffered.getvalue()
+        
+        # Use Hugging Face Inference API (FREE, no key needed!)
+        API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-large"
+        
+        response = requests.post(API_URL, data=img_bytes, timeout=30)
+        
+        if response.status_code == 200:
+            result = response.json()
+            if isinstance(result, list) and len(result) > 0:
+                caption = result[0].get('generated_text', '')
+                
+                # Enhance the caption with more detail
+                enhanced = f"Image shows: {caption}. This appears to be suitable for social media content about {caption.split()[0] if caption else 'this subject'}."
+                return enhanced
+            else:
+                st.warning("Image analysis returned unclear results. Please describe the image manually below.")
+                return None
+        else:
+            st.warning("Image analysis service is busy. Please describe the image manually below.")
+            return None
+            
+    except Exception as e:
+        st.warning(f"Could not auto-analyze image. Please describe it manually below.")
+        return None
+
+
 def init_groq():
     """Initialize Groq client"""
     try:
@@ -527,13 +560,14 @@ def main():
         st.markdown("""
         **Text:** Groq Llama-3.3-70B  
         **Images:** Pollinations.ai Flux  
-        **Upload:** Manual description
+        **Vision:** Hugging Face BLIP
         
         **Cost:** 100% Free
         
         **Speed:**  
         Text: 5-10s  
-        Images: 30-90s
+        Images: 30-90s  
+        Vision: 10-15s
         """)
     
     # Main content
@@ -563,28 +597,46 @@ def main():
         uploaded_file = st.file_uploader(
             "Upload an image",
             type=["jpg", "jpeg", "png"],
-            help="Upload a photo to generate content"
+            help="AI will analyze your photo and generate content"
         )
         
         if uploaded_file:
             image = Image.open(uploaded_file)
             st.image(image, caption="Uploaded Image", use_container_width=True)
             
-            st.info("Describe what's in this image so we can generate great content!")
+            # Try auto-analysis with Hugging Face
+            with st.spinner("Analyzing image with AI..."):
+                vision_analysis = analyze_image_with_vision(image)
             
-            manual_description = st.text_area(
-                "Image description",
-                placeholder="Example: A team of 5 people celebrating in a modern office, holding champagne glasses, with confetti in the air. The mood is joyful and energetic.",
-                height=100,
-                help="Describe what's in the image - AI will use this to create posts"
-            )
-            
-            if manual_description:
-                source_content = f"Based on this image: {manual_description}"
-                image_prompt = manual_description[:200]
+            if vision_analysis:
+                st.success("Image analyzed successfully!")
+                st.info(f"AI sees: {vision_analysis}")
+                
+                # Allow user to edit/enhance the description
+                enhanced_description = st.text_area(
+                    "Edit AI's description (optional)",
+                    value=vision_analysis,
+                    height=100,
+                    help="AI analyzed your image. You can edit this description to be more specific."
+                )
+                
+                source_content = f"Based on this image: {enhanced_description}"
+                image_prompt = enhanced_description[:200]
             else:
-                st.warning("Please describe the image above to continue")
-                source_content = None
+                # Manual fallback
+                st.warning("Auto-analysis unavailable. Please describe your image:")
+                manual_description = st.text_area(
+                    "Image description",
+                    placeholder="Example: A team celebrating in a modern office with confetti and champagne",
+                    height=100,
+                    help="Describe what's in the image"
+                )
+                
+                if manual_description:
+                    source_content = f"Based on this image: {manual_description}"
+                    image_prompt = manual_description[:200]
+                else:
+                    source_content = None
     
     else:  # Product Announcement
         product_name = st.text_input("Product Name")
