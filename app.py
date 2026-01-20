@@ -397,7 +397,7 @@ Output ONLY the post content with hashtags."""
 
     try:
         response = client.chat.completions.create(
-            model="llama-3.1-70b-versatile",  # Updated working model
+            model="llama-3.3-70b-versatile",  # Latest working model
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
             max_tokens=1000
@@ -517,7 +517,7 @@ def main():
         st.markdown("---")
         st.markdown("### About Amplify")
         st.markdown("""
-        **Text:** Groq Llama-3.1-70B  
+        **Text:** Groq Llama-3.3-70B  
         **Images:** Pollinations.ai Flux  
         **Vision:** Groq Llama-3.2-90B Vision
         
