@@ -361,9 +361,9 @@ def analyze_image_with_vision(client, image):
         image.save(buffered, format="PNG")
         img_base64 = base64.b64encode(buffered.getvalue()).decode()
         
-        # Use Groq vision model
+        # Use current Groq vision model
         response = client.chat.completions.create(
-            model="llama-3.2-90b-vision-preview",
+            model="llama-3.2-11b-vision-preview",  # Current working model
             messages=[{
                 "role": "user",
                 "content": [
@@ -565,7 +565,7 @@ def main():
         st.markdown("""
         **Text:** Groq Llama-3.3-70B  
         **Images:** Pollinations.ai Flux  
-        **Vision:** Groq Llama-3.2-90B Vision
+        **Vision:** Groq Llama-3.2-11B Vision
         
         **Cost:** 100% Free
         
