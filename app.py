@@ -570,7 +570,7 @@ def main():
     
     input_type = st.radio(
         "Content Source",
-        ["Text/Topic", "Upload Image", "Product Announcement"],
+        ["Text/Topic", "Product/Visual Content"],
         horizontal=True
     )
     
@@ -588,47 +588,56 @@ def main():
             placeholder="Example: modern analytics dashboard"
         )
         
-    elif input_type == "Upload Image":
-        uploaded_file = st.file_uploader(
-            "Upload an image",
-            type=["jpg", "jpeg", "png"],
-            help="Upload your photo as a reference"
-        )
+    elif input_type == "Product/Visual Content":
+        st.markdown("**Upload image and/or describe your product** (flexible - provide what you have!)")
         
-        if uploaded_file:
-            image = Image.open(uploaded_file)
-            col1, col2 = st.columns([1, 1])
+        col1, col2 = st.columns([1, 1])
+        
+        # Left column: Image upload
+        with col1:
+            uploaded_file = st.file_uploader(
+                "Upload image (optional)",
+                type=["jpg", "jpeg", "png"],
+                help="Upload product photo, event pic, or any visual"
+            )
             
-            with col1:
+            if uploaded_file:
+                image = Image.open(uploaded_file)
                 st.image(image, caption="Your Image", use_container_width=True)
+        
+        # Right column: Product/content details
+        with col2:
+            product_name = st.text_input(
+                "Product/Topic Name (optional)",
+                placeholder="Example: MindFlow AI"
+            )
             
-            with col2:
-                st.markdown("**Describe this image:**")
-                manual_description = st.text_area(
-                    "What should we post about?",
-                    placeholder="Example: Our team celebrating Series A funding in the office",
-                    height=150,
-                    label_visibility="collapsed",
-                    help="Look at your image and describe what content to create"
-                )
-            
-            if manual_description:
-                source_content = f"Create social media content about: {manual_description}"
-                image_prompt = manual_description[:200]
-            else:
-                source_content = None
-                st.info("👆 Describe your image above to generate content")
-    
-    else:  # Product Announcement
-        product_name = st.text_input("Product Name")
-        product_desc = st.text_area(
-            "Product Description",
-            placeholder="What does your product do?",
-            height=100
-        )
-        if product_name and product_desc:
-            source_content = f"Product: {product_name}\n\nDescription: {product_desc}"
-            image_prompt = f"{product_name} product, modern design, professional"
+            product_desc = st.text_area(
+                "Description (optional)",
+                placeholder="Describe your product, event, or what's in the image...",
+                height=200
+            )
+        
+        # Build source content from whatever they provided
+        content_parts = []
+        
+        if product_name:
+            content_parts.append(f"Product/Topic: {product_name}")
+        
+        if product_desc:
+            content_parts.append(f"Description: {product_desc}")
+        
+        if uploaded_file and not product_desc:
+            st.info("💡 Add a description to tell AI what to write about this image!")
+        
+        if content_parts:
+            source_content = "\n\n".join(content_parts)
+            image_prompt = product_desc[:200] if product_desc else product_name
+        elif uploaded_file:
+            # They uploaded image but no text - prompt for description
+            source_content = None
+        else:
+            source_content = None
     
     # Generate button
     if source_content and platforms:
@@ -703,16 +712,18 @@ def main():
         # Examples - Using native Streamlit components
         st.markdown("### Example Inputs")
         
-        st.markdown("**Product Launch**")
-        st.write("We are excited to announce TaskFlow Pro, an AI project management tool that reduces planning time by 60 percent. Built for modern teams.")
+        st.markdown("**Text/Topic Tab - Example 1:**")
+        st.write("We just raised 15M in Series A funding led by Sequoia Capital to scale our AI customer service platform to 50,000 businesses.")
         st.divider()
         
-        st.markdown("**Thought Leadership**")
+        st.markdown("**Text/Topic Tab - Example 2:**")
         st.write("The future of remote work is not about working from home, it is about working from anywhere. Here is what 5 years taught me.")
         st.divider()
         
-        st.markdown("**Industry Insight**")
-        st.write("Research shows 78 percent of consumers prefer brands that use AI transparently. Here is our approach to ethical AI.")
+        st.markdown("**Product/Visual Tab - With Text:**")
+        st.write("Name: MindFlow AI")
+        st.write("Description: Mental health app using AI for meditation. 83% anxiety reduction in 2 weeks. 7-day free trial.")
+        st.caption("💡 Can also upload image with or without text!")
 
 
 if __name__ == "__main__":
