@@ -495,15 +495,18 @@ st.markdown("""
         border-top: 1px solid #E5E7EB !important;
     }
     
-    /* Expander - Fixed all overlap */
+    /* Expander - Fixed all overlap and improved styling */
     .streamlit-expanderHeader {
         background: #FFFFFF !important;
-        border: 1px solid #E5E7EB !important;
-        border-radius: 8px !important;
-        padding: 1rem 1.25rem !important;
+        border: 2px solid #E5E7EB !important;
+        border-radius: 10px !important;
+        padding: 1.25rem 1.5rem !important;
         font-weight: 600 !important;
+        font-size: 1rem !important;
         color: #374151 !important;
         margin-bottom: 0 !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
     }
     
     .streamlit-expanderHeader:hover {
@@ -511,13 +514,19 @@ st.markdown("""
         border-color: #7C3AED !important;
     }
     
+    .streamlit-expanderHeader svg {
+        color: #7C3AED !important;
+        width: 20px !important;
+        height: 20px !important;
+    }
+    
     .streamlit-expanderContent {
         background: #FFFFFF !important;
-        border: 1px solid #E5E7EB !important;
+        border: 2px solid #E5E7EB !important;
         border-top: none !important;
-        border-radius: 0 0 8px 8px !important;
+        border-radius: 0 0 10px 10px !important;
         padding: 2rem !important;
-        margin-top: 0 !important;
+        margin-top: -2px !important;
         margin-bottom: 2rem !important;
     }
     
@@ -610,13 +619,21 @@ st.markdown("""
         color: #374151 !important;
         line-height: 1.8 !important;
         margin-bottom: 1rem !important;
+        font-size: 1rem !important;
     }
     
     [data-testid="stExpander"] strong {
         color: #111827 !important;
         display: block;
         margin-top: 1.5rem;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
+        font-size: 1.0625rem !important;
+    }
+    
+    [data-testid="stExpander"] hr {
+        margin: 1.5rem 0 !important;
+        border: none !important;
+        border-top: 1px solid #E5E7EB !important;
     }
     
     /* Column gap fix */
@@ -689,25 +706,25 @@ def generate_social_post(client, platform, source_content, tone="professional"):
         "LinkedIn": {
             "max_length": 3000,
             "style": "professional, thought leadership",
-            "format": "Hook → Value → Call-to-action",
+            "format": "Hook, value proposition, call-to-action",
             "hashtags": 5
         },
         "Twitter": {
             "max_length": 280,
             "style": "concise, engaging, conversational",
-            "format": "Hook → Key point → CTA/Question",
+            "format": "Hook, key point, question or CTA",
             "hashtags": 3
         },
         "Instagram": {
             "max_length": 2200,
             "style": "visual-first, storytelling, aspirational",
-            "format": "Engaging story → Emotional connection → CTA",
+            "format": "Engaging story, emotional connection, CTA",
             "hashtags": 10
         },
         "Facebook": {
             "max_length": 1000,
             "style": "community-focused, conversational, relatable",
-            "format": "Personal angle → Story → Engagement question",
+            "format": "Personal angle, story, engagement question",
             "hashtags": 3
         }
     }
@@ -794,10 +811,10 @@ def display_platform_card(platform, post_content, image):
     """Display a professional platform card with post and image"""
     
     dimensions = {
-        "LinkedIn": "1200×627",
-        "Twitter": "1200×675",
-        "Instagram": "1080×1080",
-        "Facebook": "1200×630"
+        "LinkedIn": "1200x627",
+        "Twitter": "1200x675",
+        "Instagram": "1080x1080",
+        "Facebook": "1200x630"
     }
     
     st.markdown(f"""
@@ -1035,19 +1052,18 @@ def main():
         
         # Show examples
         with st.expander("See Examples"):
-            st.markdown("""
-            **Example 1: Product Launch**
+            st.markdown("**Example 1: Product Launch**")
+            st.write("We are excited to announce the launch of TaskFlow Pro, an AI-powered project management tool that reduces planning time by 60 percent. Built for modern teams who need to move fast without sacrificing quality.")
             
-            We're excited to announce the launch of TaskFlow Pro - an AI-powered project management tool that reduces planning time by 60%. Built for modern teams who need to move fast without sacrificing quality.
+            st.markdown("---")
             
-            **Example 2: Thought Leadership**
+            st.markdown("**Example 2: Thought Leadership**")
+            st.write("The future of remote work is not about working from home, it is about working from anywhere. Here is what 5 years of remote-first taught me about building distributed teams.")
             
-            The future of remote work isn't about working from home - it's about working from anywhere. Here's what 5 years of remote-first taught me about building distributed teams.
+            st.markdown("---")
             
-            **Example 3: Industry Insight**
-            
-            New research shows that 78% of consumers prefer brands that use AI transparently. Here's how we're approaching ethical AI in marketing.
-            """)
+            st.markdown("**Example 3: Industry Insight**")
+            st.write("New research shows that 78 percent of consumers prefer brands that use AI transparently. Here is how we are approaching ethical AI in marketing.")
 
 
 if __name__ == "__main__":
