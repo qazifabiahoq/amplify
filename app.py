@@ -50,6 +50,25 @@ st.markdown("""
         line-height: 1.7 !important;
     }
     
+    /* Force textarea text to be visible */
+    textarea {
+        color: #1F2937 !important;
+        background: #FFFFFF !important;
+    }
+    
+    textarea::placeholder {
+        color: #9CA3AF !important;
+    }
+    
+    input {
+        color: #1F2937 !important;
+        background: #FFFFFF !important;
+    }
+    
+    input::placeholder {
+        color: #9CA3AF !important;
+    }
+    
     .hero-header {
         background: linear-gradient(135deg, #7C3AED 0%, #3B82F6 100%);
         padding: 3rem 2rem;
@@ -378,7 +397,7 @@ Output ONLY the post content with hashtags."""
 
     try:
         response = client.chat.completions.create(
-            model="mixtral-8x7b-32768",
+            model="llama-3.1-70b-versatile",  # Updated working model
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
             max_tokens=1000
@@ -390,7 +409,7 @@ Output ONLY the post content with hashtags."""
 
 
 def generate_platform_image(prompt, platform):
-    """Generate platform image using Pollinations.ai"""
+    """Generate platform image using Pollinations.ai with retry"""
     
     dimensions = {
         "LinkedIn": {"width": 1200, "height": 627},
@@ -405,14 +424,25 @@ def generate_platform_image(prompt, platform):
     encoded_prompt = urllib.parse.quote(enhanced_prompt)
     api_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={dims['width']}&height={dims['height']}&model=flux&nologo=true&enhance=true"
     
-    try:
-        response = requests.get(api_url, timeout=60)
-        if response.status_code == 200:
-            return Image.open(io.BytesIO(response.content))
-        return None
-    except Exception as e:
-        st.error(f"Image error: {str(e)}")
-        return None
+    # Try 3 times with increasing timeout
+    for attempt in range(3):
+        try:
+            timeout = 60 + (attempt * 30)  # 60s, 90s, 120s
+            response = requests.get(api_url, timeout=timeout)
+            if response.status_code == 200:
+                return Image.open(io.BytesIO(response.content))
+        except requests.Timeout:
+            if attempt < 2:
+                continue
+            st.warning(f"Image generation timed out for {platform}")
+            return None
+        except Exception as e:
+            if attempt < 2:
+                continue
+            st.warning(f"Image generation failed for {platform}")
+            return None
+    
+    return None
 
 
 def display_platform_card(platform, post_content, image):
@@ -446,12 +476,17 @@ def display_platform_card(platform, post_content, image):
             key=f"download_img_{platform}",
             use_container_width=True
         )
+    else:
+        st.info(f"Image generation skipped or timed out for {platform}. You can still use the text content below.")
     
-    st.markdown(f'<div class="post-content">{post_content}</div>', unsafe_allow_html=True)
-    
-    if st.button(f"Copy {platform} Text", key=f"copy_{platform}", use_container_width=True):
-        st.success("Copied!")
-        st.code(post_content, language=None)
+    if post_content:
+        st.markdown(f'<div class="post-content">{post_content}</div>', unsafe_allow_html=True)
+        
+        if st.button(f"Copy {platform} Text", key=f"copy_{platform}", use_container_width=True):
+            st.success("Copied!")
+            st.code(post_content, language=None)
+    else:
+        st.error(f"Failed to generate content for {platform}. Please try again.")
     
     st.markdown("---")
 
@@ -482,7 +517,7 @@ def main():
         st.markdown("---")
         st.markdown("### About Amplify")
         st.markdown("""
-        **Text:** Groq Mixtral-8x7B  
+        **Text:** Groq Llama-3.1-70B  
         **Images:** Pollinations.ai Flux  
         **Vision:** Groq Llama-3.2-90B Vision
         
@@ -490,7 +525,7 @@ def main():
         
         **Speed:**  
         Text: 5-10s  
-        Images: 30-45s
+        Images: 30-90s
         """)
     
     # Main content
