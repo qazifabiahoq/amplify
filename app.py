@@ -69,6 +69,56 @@ st.markdown("""
         color: #9CA3AF !important;
     }
     
+    /* MULTISELECT FIXES */
+    /* Multiselect container */
+    [data-baseweb="select"] {
+        background: #FFFFFF !important;
+    }
+    
+    /* Selected items (pills/tags) - match brand colors */
+    [data-baseweb="tag"] {
+        background: linear-gradient(135deg, #7C3AED 0%, #3B82F6 100%) !important;
+        color: #FFFFFF !important;
+        border: none !important;
+    }
+    
+    [data-baseweb="tag"] span {
+        color: #FFFFFF !important;
+    }
+    
+    /* Close button on selected items */
+    [data-baseweb="tag"] svg {
+        fill: #FFFFFF !important;
+    }
+    
+    /* Dropdown menu */
+    [data-baseweb="popover"] {
+        background: #FFFFFF !important;
+    }
+    
+    /* Options in dropdown - fix dark on dark issue */
+    [role="option"] {
+        background: #FFFFFF !important;
+        color: #1F2937 !important;
+    }
+    
+    [role="option"]:hover {
+        background: #F3F4F6 !important;
+        color: #111827 !important;
+    }
+    
+    /* Selected option in dropdown */
+    [aria-selected="true"] {
+        background: #EDE9FE !important;
+        color: #7C3AED !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Multiselect input field */
+    [data-baseweb="select"] input {
+        color: #1F2937 !important;
+    }
+    
     /* File uploader visibility fix */
     [data-testid="stFileUploader"] {
         background: #FFFFFF !important;
