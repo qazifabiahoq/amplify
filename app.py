@@ -6,6 +6,7 @@ from PIL import Image
 import io
 import urllib.parse
 from datetime import datetime
+import time
 
 # Page config
 st.set_page_config(
@@ -418,7 +419,7 @@ Output ONLY the post content with hashtags."""
 
 
 def generate_platform_image(prompt, platform):
-    """Generate platform image using Pollinations.ai with retry"""
+    """Generate platform image - tries Pollinations first, then Hugging Face backup"""
     
     dimensions = {
         "LinkedIn": {"width": 1200, "height": 627},
@@ -430,28 +431,51 @@ def generate_platform_image(prompt, platform):
     dims = dimensions[platform]
     enhanced_prompt = f"{prompt}, professional, high quality, clean design, {platform} social media, modern, corporate"
     
-    encoded_prompt = urllib.parse.quote(enhanced_prompt)
-    api_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={dims['width']}&height={dims['height']}&model=flux&nologo=true&enhance=true"
+    # Try Pollinations.ai first (faster when it works)
+    try:
+        encoded_prompt = urllib.parse.quote(enhanced_prompt)
+        api_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={dims['width']}&height={dims['height']}&model=flux&nologo=true&enhance=true"
+        
+        for attempt in range(2):
+            try:
+                timeout = 60 + (attempt * 30)
+                response = requests.get(api_url, timeout=timeout)
+                if response.status_code == 200:
+                    return Image.open(io.BytesIO(response.content))
+            except:
+                continue
+    except:
+        pass
     
-    # Try 3 times with increasing timeout
-    for attempt in range(3):
-        try:
-            timeout = 60 + (attempt * 30)  # 60s, 90s, 120s
-            response = requests.get(api_url, timeout=timeout)
+    # Backup: Try Hugging Face Stable Diffusion (more reliable, slower)
+    try:
+        API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+        
+        payload = {"inputs": enhanced_prompt}
+        
+        for attempt in range(3):
+            response = requests.post(API_URL, json=payload, timeout=90)
+            
             if response.status_code == 200:
-                return Image.open(io.BytesIO(response.content))
-        except requests.Timeout:
-            if attempt < 2:
-                continue
-            st.warning(f"Image generation timed out for {platform}")
-            return None
-        except Exception as e:
-            if attempt < 2:
-                continue
-            st.warning(f"Image generation failed for {platform}")
-            return None
-    
-    return None
+                image = Image.open(io.BytesIO(response.content))
+                
+                # Resize to platform dimensions
+                image = image.resize((dims['width'], dims['height']), Image.Resampling.LANCZOS)
+                return image
+            
+            elif response.status_code == 503:
+                # Model loading, wait and retry
+                if attempt < 2:
+                    import time
+                    time.sleep(10)
+                    continue
+        
+        st.warning(f"Image generation unavailable for {platform}")
+        return None
+        
+    except Exception as e:
+        st.warning(f"Could not generate image for {platform}")
+        return None
 
 
 def display_platform_card(platform, post_content, image):
@@ -474,7 +498,7 @@ def display_platform_card(platform, post_content, image):
     """, unsafe_allow_html=True)
     
     if image:
-        st.image(image, use_container_width=True)
+        st.image(image, use_container_width=False, width=600, caption=f"{platform} Image")
         buf = io.BytesIO()
         image.save(buf, format='PNG')
         st.download_button(
@@ -526,16 +550,19 @@ def main():
         st.markdown("---")
         st.markdown("### About Amplify")
         st.markdown("""
-        **Text:** Groq Llama-3.3-70B  
-        **Images:** Pollinations.ai Flux  
-        **Vision:** Hugging Face (3 models)
+        **Text Generation:**  
+        Groq Llama-3.3-70B
         
-        **Cost:** 100% Free
+        **Image Generation:**  
+        Pollinations + Hugging Face backup
         
-        **Speed:**  
-        Text: 5-10s  
-        Images: 30-90s  
-        Vision: 10-30s
+        **100% Free • No API Costs**
+        
+        **Generation Speed:**  
+        ⚡ Text only: 20-40s (all platforms)  
+        🐌 With images: 2-6 minutes (SLOW!)
+        
+        💡 Tip: Uncheck images for fast results
         """)
     
     # Main content
