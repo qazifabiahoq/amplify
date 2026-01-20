@@ -782,24 +782,7 @@ def main():
                     display_platform_card(platform, results[platform]["content"], results[platform]["image"])
     
     else:
-        st.info("☝️ Select your platforms above, then enter content and click Generate!")
-        
-        # Examples - Using native Streamlit components
-        st.markdown("### Example Inputs")
-        
-        st.markdown("**Text/Topic Tab - Example 1:**")
-        st.write("We just raised 15M in Series A funding led by Sequoia Capital to scale our AI customer service platform to 50,000 businesses.")
-        st.divider()
-        
-        st.markdown("**Text/Topic Tab - Example 2:**")
-        st.write("The future of remote work is not about working from home, it is about working from anywhere. Here is what 5 years taught me.")
-        st.divider()
-        
-        st.markdown("**Product/Visual Tab - With Text:**")
-        st.write("Name: MindFlow AI")
-        st.write("Description: Mental health app using AI for meditation. 83% anxiety reduction in 2 weeks. 7-day free trial.")
-        st.caption("💡 Can also upload image with or without text!")
-        st.caption("☝️ Remember: Select platforms at the top!")
+        st.info("Select your platforms above, then enter content and click Generate!")
 
 
 if __name__ == "__main__":
