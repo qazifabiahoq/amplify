@@ -40,9 +40,29 @@ st.markdown("""
     h1, h2, h3, h4, h5, h6 {
         font-family: 'Space Grotesk', sans-serif !important;
         color: #111827 !important;
+        margin-top: 1rem !important;
+        margin-bottom: 0.75rem !important;
+        line-height: 1.3 !important;
     }
     
     p, div, span, label, input, textarea, select {
+        color: #374151 !important;
+        line-height: 1.6 !important;
+    }
+    
+    /* Ensure all markdown paragraphs have spacing */
+    .stMarkdown p {
+        margin-bottom: 0.75rem !important;
+        color: #374151 !important;
+    }
+    
+    .stMarkdown ul, .stMarkdown ol {
+        margin-bottom: 0.75rem !important;
+        padding-left: 1.5rem !important;
+    }
+    
+    .stMarkdown li {
+        margin-bottom: 0.375rem !important;
         color: #374151 !important;
     }
     
@@ -303,6 +323,12 @@ st.markdown("""
         text-align: center;
         border: 1px solid #E5E7EB;
         box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        margin: 0.5rem 0;
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
     }
     
     .stat-value {
@@ -310,7 +336,8 @@ st.markdown("""
         font-size: 2.25rem;
         font-weight: 800;
         color: #7C3AED !important;
-        margin: 0 0 0.375rem 0;
+        margin: 0 0 0.5rem 0;
+        line-height: 1.2;
     }
     
     .stat-label {
@@ -320,6 +347,7 @@ st.markdown("""
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
+        line-height: 1.4;
     }
     
     /* Loading animation */
@@ -392,6 +420,113 @@ st.markdown("""
         border: none;
         border-top: 1px solid #E5E7EB;
     }
+    
+    /* Expander styling - fix text overlap */
+    .streamlit-expanderHeader {
+        background: #FFFFFF !important;
+        border: 1px solid #E5E7EB !important;
+        border-radius: 8px !important;
+        padding: 0.75rem 1rem !important;
+        font-weight: 600 !important;
+        color: #374151 !important;
+    }
+    
+    .streamlit-expanderHeader:hover {
+        background: #F9FAFB !important;
+        border-color: #7C3AED !important;
+    }
+    
+    .streamlit-expanderContent {
+        background: #FFFFFF !important;
+        border: 1px solid #E5E7EB !important;
+        border-top: none !important;
+        border-radius: 0 0 8px 8px !important;
+        padding: 1.5rem !important;
+        margin-top: -1px !important;
+    }
+    
+    /* Code blocks - fix visibility */
+    code {
+        background: #F3F4F6 !important;
+        color: #1F2937 !important;
+        padding: 0.125rem 0.375rem !important;
+        border-radius: 4px !important;
+        font-size: 0.875rem !important;
+        font-family: 'Courier New', monospace !important;
+    }
+    
+    pre {
+        background: #F9FAFB !important;
+        border: 1px solid #E5E7EB !important;
+        border-radius: 8px !important;
+        padding: 1rem !important;
+        overflow-x: auto !important;
+        margin: 0.75rem 0 !important;
+    }
+    
+    pre code {
+        background: transparent !important;
+        padding: 0 !important;
+        color: #1F2937 !important;
+        white-space: pre-wrap !important;
+        word-wrap: break-word !important;
+    }
+    
+    /* Strong/Bold text */
+    strong, b {
+        color: #111827 !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Info box styling */
+    .stAlert {
+        background: #EEF2FF !important;
+        border: 1px solid #C7D2FE !important;
+        border-radius: 8px !important;
+        padding: 1rem !important;
+        margin: 1rem 0 !important;
+    }
+    
+    .stAlert p {
+        color: #4338CA !important;
+        margin: 0 !important;
+    }
+    
+    /* Success box */
+    .stSuccess {
+        background: #D1FAE5 !important;
+        border: 1px solid #6EE7B7 !important;
+    }
+    
+    .stSuccess p {
+        color: #065F46 !important;
+    }
+    
+    /* Error box */
+    .stError {
+        background: #FEE2E2 !important;
+        border: 1px solid #FCA5A5 !important;
+    }
+    
+    .stError p {
+        color: #991B1B !important;
+    }
+    
+    /* Markdown content spacing */
+    .element-container {
+        margin-bottom: 0.5rem !important;
+    }
+    
+    /* Fix text in expander */
+    [data-testid="stExpander"] p {
+        color: #374151 !important;
+        line-height: 1.7 !important;
+        margin-bottom: 0.75rem !important;
+    }
+    
+    [data-testid="stExpander"] strong {
+        color: #111827 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -407,18 +542,31 @@ st.markdown("""
 
 # Initialize Groq client
 def init_groq():
-    """Initialize Groq API client"""
-    api_key = os.getenv("GROQ_API_KEY")
+    """Initialize Groq API client - supports both .env and Streamlit Secrets"""
+    
+    # Try Streamlit Secrets first (for cloud deployment)
+    try:
+        api_key = st.secrets["GROQ_API_KEY"]
+    except:
+        # Fall back to environment variable (for local development)
+        api_key = os.getenv("GROQ_API_KEY")
     
     if not api_key:
-        st.error("GROQ_API_KEY not found in environment variables")
+        st.error("GROQ_API_KEY not found")
         st.info("""
-        **Get your FREE Groq API key:**
+        **For Local Development:**
         
-        1. Visit https://console.groq.com
-        2. Sign up (free)
-        3. Create API key
-        4. Add to .env file: `GROQ_API_KEY=your_key_here`
+        1. Create a `.env` file in the same folder as app.py
+        2. Add this line: `GROQ_API_KEY=your_key_here`
+        3. Restart the app
+        
+        **For Streamlit Cloud:**
+        
+        1. Go to your app settings
+        2. Click "Secrets" 
+        3. Add: `GROQ_API_KEY = "your_key_here"`
+        
+        **Get FREE API key:** https://console.groq.com
         """)
         st.stop()
     
@@ -651,7 +799,7 @@ def main():
             placeholder="https://yourblog.com/article"
         )
         if url:
-            st.info("💡 Paste your article text below (URL fetching coming soon)")
+            st.info("Paste your article text below (URL fetching coming soon)")
             source_content = st.text_area(
                 "Article content",
                 placeholder="Paste your article text here...",
@@ -755,6 +903,9 @@ def main():
                     <div class="stat-label">Images Generated</div>
                 </div>
                 """, unsafe_allow_html=True)
+            
+            # Add spacing
+            st.markdown('<div style="margin: 2rem 0;"></div>', unsafe_allow_html=True)
             
             # Display results
             st.markdown('<h2 class="section-header">Generated Content</h2>', unsafe_allow_html=True)
