@@ -355,7 +355,7 @@ def init_groq():
 
 
 def generate_social_post(client, platform, source_content, tone="professional"):
-    """Generate platform-specific post using Groq AI"""
+    """Generate platform-specific post - tries multiple models for reliability"""
     
     platform_specs = {
         "LinkedIn": {
@@ -405,21 +405,35 @@ REQUIREMENTS:
 
 Output ONLY the post content with hashtags."""
 
-    try:
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",  # Latest working model
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=1000
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        st.error(f"Error: {str(e)}")
-        return None
+    # Try multiple models in order of speed/reliability
+    models = [
+        "llama-3.3-70b-versatile",      # Best quality
+        "llama-3.1-8b-instant",         # Fastest fallback
+        "gemma2-9b-it",                 # Alternative
+        "mixtral-8x7b-32768",           # Backup (if re-enabled)
+    ]
+    
+    for model_name in models:
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=1000,
+                timeout=15  # Fast timeout - move to next model quickly
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            # Try next model
+            continue
+    
+    # All models failed
+    st.error(f"Could not generate {platform} post. Please try again.")
+    return None
 
 
 def generate_platform_image(prompt, platform):
-    """Generate platform image - tries Pollinations first, then Hugging Face backup"""
+    """Generate platform image - tries multiple APIs for speed and reliability"""
     
     dimensions = {
         "LinkedIn": {"width": 1200, "height": 627},
@@ -431,51 +445,56 @@ def generate_platform_image(prompt, platform):
     dims = dimensions[platform]
     enhanced_prompt = f"{prompt}, professional, high quality, clean design, {platform} social media, modern, corporate"
     
-    # Try Pollinations.ai first (faster when it works)
+    # Try 1: Pollinations.ai (fastest when it works)
     try:
         encoded_prompt = urllib.parse.quote(enhanced_prompt)
         api_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={dims['width']}&height={dims['height']}&model=flux&nologo=true&enhance=true"
         
-        for attempt in range(2):
-            try:
-                timeout = 60 + (attempt * 30)
-                response = requests.get(api_url, timeout=timeout)
-                if response.status_code == 200:
-                    return Image.open(io.BytesIO(response.content))
-            except:
-                continue
+        response = requests.get(api_url, timeout=45)  # Reduced timeout
+        if response.status_code == 200:
+            return Image.open(io.BytesIO(response.content))
     except:
         pass
     
-    # Backup: Try Hugging Face Stable Diffusion (more reliable, slower)
+    # Try 2: Smaller/faster Pollinations model
+    try:
+        api_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={dims['width']}&height={dims['height']}&nologo=true"
+        response = requests.get(api_url, timeout=45)
+        if response.status_code == 200:
+            return Image.open(io.BytesIO(response.content))
+    except:
+        pass
+    
+    # Try 3: Hugging Face SDXL (more reliable, slower)
     try:
         API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
-        
         payload = {"inputs": enhanced_prompt}
         
-        for attempt in range(3):
-            response = requests.post(API_URL, json=payload, timeout=90)
-            
-            if response.status_code == 200:
-                image = Image.open(io.BytesIO(response.content))
-                
-                # Resize to platform dimensions
-                image = image.resize((dims['width'], dims['height']), Image.Resampling.LANCZOS)
-                return image
-            
-            elif response.status_code == 503:
-                # Model loading, wait and retry
-                if attempt < 2:
-                    import time
-                    time.sleep(10)
-                    continue
+        response = requests.post(API_URL, json=payload, timeout=60)
         
-        st.warning(f"Image generation unavailable for {platform}")
-        return None
+        if response.status_code == 200:
+            image = Image.open(io.BytesIO(response.content))
+            image = image.resize((dims['width'], dims['height']), Image.Resampling.LANCZOS)
+            return image
+    except:
+        pass
+    
+    # Try 4: Smaller HF model (faster)
+    try:
+        API_URL = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
+        payload = {"inputs": enhanced_prompt}
         
-    except Exception as e:
-        st.warning(f"Could not generate image for {platform}")
-        return None
+        response = requests.post(API_URL, json=payload, timeout=45)
+        
+        if response.status_code == 200:
+            image = Image.open(io.BytesIO(response.content))
+            image = image.resize((dims['width'], dims['height']), Image.Resampling.LANCZOS)
+            return image
+    except:
+        pass
+    
+    # All failed - return None but don't stop generation
+    return None
 
 
 def display_platform_card(platform, post_content, image):
@@ -528,45 +547,55 @@ def main():
     
     # Sidebar
     with st.sidebar:
-        st.markdown("### Configuration")
+        st.markdown("### Settings")
         
         tone = st.selectbox(
-            "Content Tone",
-            ["Professional", "Casual", "Inspirational", "Educational", "Humorous"]
-        )
-        
-        platforms = st.multiselect(
-            "Select Platforms",
-            ["LinkedIn", "Twitter", "Instagram", "Facebook"],
-            default=["LinkedIn", "Twitter"]
+            "Writing Style",
+            ["Professional", "Casual", "Inspirational", "Educational", "Humorous"],
+            help="How should your posts sound?"
         )
         
         generate_images = st.checkbox(
-            "Generate AI Images",
-            value=True,
-            help="Create custom images (takes longer)"
+            "Include Images",
+            value=False,
+            help="⚠️ Takes 1-4 minutes longer. Uncheck for instant results."
         )
         
         st.markdown("---")
-        st.markdown("### About Amplify")
+        st.markdown("### How It Works")
         st.markdown("""
-        **Text Generation:**  
-        Groq Llama-3.3-70B
+        1️⃣ Select platforms (main page)
         
-        **Image Generation:**  
-        Pollinations + Hugging Face backup
+        2️⃣ Enter your content or upload image
         
-        **100% Free • No API Costs**
+        3️⃣ Click Generate 
         
-        **Generation Speed:**  
-        ⚡ Text only: 20-40s (all platforms)  
-        🐌 With images: 2-6 minutes (SLOW!)
+        4️⃣ Get ready-to-post content!
         
-        💡 Tip: Uncheck images for fast results
+        **Speed:**  
+        • Without images: 10-20 seconds  
+        • With images: 1-4 minutes
+        
+        💡 **100% Free**
         """)
     
     # Main content
     st.markdown('<h2 class="section-header">Input Content</h2>', unsafe_allow_html=True)
+    
+    # Platform selector in MAIN area (not sidebar)
+    st.markdown("**Select Platforms:**")
+    platforms = st.multiselect(
+        "Choose which platforms to generate content for",
+        ["LinkedIn", "Twitter", "Instagram", "Facebook"],
+        default=["LinkedIn", "Twitter", "Instagram", "Facebook"],
+        help="Select the platforms where you want to post",
+        label_visibility="collapsed"
+    )
+    
+    if not platforms:
+        st.warning("⚠️ Please select at least one platform above")
+    
+    st.markdown("---")
     
     input_type = st.radio(
         "Content Source",
@@ -652,7 +681,7 @@ def main():
             results = {}
             
             for platform in platforms:
-                status_text.text(f"Generating {platform} post...")
+                status_text.text(f"📝 {platform}: Trying 4 AI models...")
                 
                 post_content = generate_social_post(client, platform, source_content, tone.lower())
                 current_step += 1
@@ -660,7 +689,7 @@ def main():
                 
                 image = None
                 if generate_images:
-                    status_text.text(f"Creating {platform} image...")
+                    status_text.text(f"🎨 {platform} image: Trying 4 APIs (30-60s)...")
                     img_prompt = image_prompt if image_prompt else source_content[:200]
                     image = generate_platform_image(img_prompt, platform)
                     current_step += 1
@@ -707,7 +736,7 @@ def main():
                     display_platform_card(platform, results[platform]["content"], results[platform]["image"])
     
     else:
-        st.info("Enter your content and click Generate Content to get started")
+        st.info("☝️ Select your platforms above, then enter content and click Generate!")
         
         # Examples - Using native Streamlit components
         st.markdown("### Example Inputs")
@@ -724,6 +753,7 @@ def main():
         st.write("Name: MindFlow AI")
         st.write("Description: Mental health app using AI for meditation. 83% anxiety reduction in 2 weeks. 7-day free trial.")
         st.caption("💡 Can also upload image with or without text!")
+        st.caption("☝️ Remember: Select platforms at the top!")
 
 
 if __name__ == "__main__":
