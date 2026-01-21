@@ -478,14 +478,16 @@ def analyze_with_clip(image):
         headers = {"Content-Type": "application/octet-stream"}
         API_URL = "https://api-inference.huggingface.co/models/openai/clip-vit-base-patch32"
         
-        # Detect what's in the image
+        # Better detection categories - more specific
         categories = [
-            "person people human", "product item object", "food meal dish",
-            "landscape nature outdoor", "building architecture interior",
-            "technology device gadget", "clothing fashion apparel",
-            "art painting artwork", "animal pet", "vehicle car",
-            "event celebration party", "workspace office desk",
-            "text document screenshot", "logo brand graphic"
+            "laptop computer technology", "smartphone mobile phone", "tablet device screen",
+            "headphones audio earbuds", "camera photography equipment", "watch timepiece wearable",
+            "dashboard analytics interface", "graph chart visualization", "software application screenshot",
+            "office workspace desk", "person human portrait", "meeting conference presentation",
+            "product merchandise item", "food meal cuisine", "beverage drink coffee",
+            "clothing fashion apparel", "furniture chair table", "building architecture exterior",
+            "nature landscape outdoor", "indoor interior room", "text document paper",
+            "logo brand symbol", "illustration graphic design", "photograph picture image"
         ]
         
         response = requests.post(
@@ -500,14 +502,30 @@ def analyze_with_clip(image):
         if response.status_code == 200:
             result = response.json()
             if isinstance(result, list) and len(result) > 0:
-                # Get top 5 detected categories
-                labels = [item['label'].split()[0] for item in result[:5]]
+                # Get top results and extract meaningful keywords
+                for item in result[:10]:
+                    label_text = item['label']
+                    score = item.get('score', 0)
+                    
+                    # Only include if confidence is reasonable
+                    if score > 0.1:
+                        # Extract the main word (first word of label)
+                        words = label_text.split()
+                        labels.append(words[0])
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_labels = []
+        for label in labels:
+            if label.lower() not in seen:
+                seen.add(label.lower())
+                unique_labels.append(label)
         
         # Get dominant color
         dominant_color = extract_dominant_color(image)
         
         return {
-            "labels": labels if labels else ["product", "image", "content"],
+            "labels": unique_labels[:8] if unique_labels else ["technology", "digital", "product"],
             "objects": [],
             "text": [],
             "colors": [dominant_color],
@@ -516,7 +534,7 @@ def analyze_with_clip(image):
         
     except:
         return {
-            "labels": ["product", "content"],
+            "labels": ["technology", "digital", "product"],
             "objects": [],
             "text": [],
             "colors": ["neutral"],
@@ -799,29 +817,29 @@ def main():
         st.markdown("---")
         st.markdown("### How It Works")
         st.markdown("""
-        1️⃣ Select platforms
+        1. Select platforms
         
-        2️⃣ Upload image (auto-analyzed!)
+        2. Upload image (auto-analyzed!)
         
-        3️⃣ Add description (optional)
+        3. Add description (optional)
         
-        4️⃣ Get AI-generated posts
+        4. Get AI-generated posts
         
-        **🔍 Computer Vision:**  
+        **Computer Vision:**  
         Detects objects, text, colors automatically!
         
-        💡 **100% Free**
+        **100% Free**
         """)
         
         st.markdown("---")
         st.markdown("### Supported Platforms")
         st.markdown("""
-        📱 **LinkedIn** - Professional  
-        🐦 **Twitter** - Microblog  
-        📸 **Instagram** - Visual  
-        👥 **Facebook** - Social  
-        📌 **Pinterest** - Discovery  
-        🧵 **Threads** - Conversational  
+        **LinkedIn** - Professional  
+        **Twitter** - Microblog  
+        **Instagram** - Visual  
+        **Facebook** - Social  
+        **Pinterest** - Discovery  
+        **Threads** - Conversational  
         """)
     
     # Main content
@@ -838,7 +856,7 @@ def main():
     )
     
     if not platforms:
-        st.warning("⚠️ Please select at least one platform above")
+        st.warning("Please select at least one platform above")
     
     st.markdown("---")
     
@@ -880,14 +898,14 @@ def main():
                 st.image(image, caption="Your Image", use_container_width=True)
                 
                 # AUTO-ANALYZE IMAGE
-                with st.spinner("🔍 Analyzing image with Computer Vision..."):
+                with st.spinner("Analyzing image with Computer Vision..."):
                     image_analysis = analyze_image_with_vision(image)
                 
                 # Show analysis results
                 if image_analysis:
                     st.markdown(f"""
                     <div class="analysis-box">
-                        <h4>🔍 Image Analysis ({image_analysis['source']})</h4>
+                        <h4>Image Analysis ({image_analysis['source']})</h4>
                         <p><strong>Detected:</strong> {', '.join(image_analysis['labels'][:5])}</p>
                         {f"<p><strong>Objects:</strong> {', '.join(image_analysis['objects'][:3])}</p>" if image_analysis['objects'] else ""}
                         {f"<p><strong>Text:</strong> {', '.join([t for t in image_analysis['text'] if t][:2])}</p>" if image_analysis['text'] else ""}
@@ -940,7 +958,7 @@ def main():
             results = {}
             
             for platform in platforms:
-                status_text.text(f"📝 {platform}: Writing with image context...")
+                status_text.text(f"{platform}: Writing with image context...")
                 
                 post_content = generate_social_post(client, platform, source_content, image_analysis, tone.lower())
                 current_step += 1
@@ -948,7 +966,7 @@ def main():
                 
                 image = None
                 if generate_images:
-                    status_text.text(f"🎨 {platform} image: Generating...")
+                    status_text.text(f"{platform} image: Generating...")
                     img_prompt = image_prompt if image_prompt else source_content[:200]
                     image = generate_platform_image(img_prompt, platform, image_analysis)
                     current_step += 1
@@ -959,7 +977,7 @@ def main():
             progress_bar.empty()
             status_text.empty()
             
-            st.markdown('<div class="success-box">✅ Content generated with image analysis!</div>', unsafe_allow_html=True)
+            st.markdown('<div class="success-box">Content generated with image analysis!</div>', unsafe_allow_html=True)
             
             # Stats
             col1, col2, col3 = st.columns(3)
@@ -995,7 +1013,7 @@ def main():
                     display_platform_card(platform, results[platform]["content"], results[platform]["image"])
     
     else:
-        st.info("💡 Upload an image and AI will analyze it automatically, or enter text content!")
+        st.info("Upload an image and AI will analyze it automatically, or enter text content!")
 
 
 if __name__ == "__main__":
