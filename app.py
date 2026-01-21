@@ -7,6 +7,8 @@ import io
 import urllib.parse
 from datetime import datetime
 import time
+import base64
+import numpy as np
 
 # Page config
 st.set_page_config(
@@ -70,12 +72,10 @@ st.markdown("""
     }
     
     /* MULTISELECT FIXES */
-    /* Multiselect container */
     [data-baseweb="select"] {
         background: #FFFFFF !important;
     }
     
-    /* Selected items (pills/tags) - match brand colors */
     [data-baseweb="tag"] {
         background: linear-gradient(135deg, #7C3AED 0%, #3B82F6 100%) !important;
         color: #FFFFFF !important;
@@ -86,17 +86,14 @@ st.markdown("""
         color: #FFFFFF !important;
     }
     
-    /* Close button on selected items */
     [data-baseweb="tag"] svg {
         fill: #FFFFFF !important;
     }
     
-    /* Dropdown menu */
     [data-baseweb="popover"] {
         background: #FFFFFF !important;
     }
     
-    /* Options in dropdown - fix dark on dark issue */
     [role="option"] {
         background: #FFFFFF !important;
         color: #1F2937 !important;
@@ -107,14 +104,12 @@ st.markdown("""
         color: #111827 !important;
     }
     
-    /* Selected option in dropdown */
     [aria-selected="true"] {
         background: #EDE9FE !important;
         color: #7C3AED !important;
         font-weight: 600 !important;
     }
     
-    /* Multiselect input field */
     [data-baseweb="select"] input {
         color: #1F2937 !important;
     }
@@ -155,7 +150,6 @@ st.markdown("""
         border-radius: 6px !important;
     }
     
-    /* Drag and drop text visibility */
     .uploadedFile {
         background: #FFFFFF !important;
         color: #1F2937 !important;
@@ -340,40 +334,22 @@ st.markdown("""
         background: linear-gradient(90deg, #7C3AED 0%, #3B82F6 100%) !important;
     }
     
-    .example-box {
-        background: #FFFFFF;
-        border: 2px solid #E5E7EB;
+    .analysis-box {
+        background: #EDE9FE;
+        border: 2px solid #7C3AED;
         border-radius: 12px;
-        padding: 2rem;
-        margin: 2rem 0;
+        padding: 1.5rem;
+        margin: 1rem 0;
     }
     
-    .example-box h3 {
+    .analysis-box h4 {
         margin-top: 0 !important;
-        margin-bottom: 1.5rem !important;
+        color: #7C3AED !important;
     }
     
-    .example-item {
-        margin-bottom: 1.5rem;
-        padding-bottom: 1.5rem;
-        border-bottom: 1px solid #E5E7EB;
-    }
-    
-    .example-item:last-child {
-        border-bottom: none;
-        margin-bottom: 0;
-        padding-bottom: 0;
-    }
-    
-    .example-title {
-        font-weight: 700;
-        color: #111827 !important;
-        margin-bottom: 0.5rem;
-    }
-    
-    .example-text {
-        color: #374151 !important;
-        line-height: 1.7;
+    .analysis-box p {
+        color: #1F2937 !important;
+        margin: 0.5rem 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -383,10 +359,202 @@ st.markdown("""
 <div class="hero-header">
     <h1 class="hero-title">Amplify</h1>
     <p class="hero-subtitle">Multiply your reach across 6 platforms</p>
-    <span class="hero-badge">Powered by Real AI Models</span>
+    <span class="hero-badge">Powered by Computer Vision + AI</span>
 </div>
 """, unsafe_allow_html=True)
 
+
+def analyze_image_with_vision(image):
+    """Analyze image using free vision APIs: Google Vision → Amazon Rekognition → CLIP"""
+    
+    # Convert to base64
+    buffered = io.BytesIO()
+    image.save(buffered, format="JPEG", quality=95)
+    img_base64 = base64.b64encode(buffered.getvalue()).decode()
+    
+    # ============================================
+    # TIER 1: Google Cloud Vision (if API key exists)
+    # ============================================
+    try:
+        google_key = st.secrets.get("google", {}).get("vision_api_key")
+        
+        if google_key:
+            response = requests.post(
+                f"https://vision.googleapis.com/v1/images:annotate?key={google_key}",
+                json={
+                    "requests": [{
+                        "image": {"content": img_base64},
+                        "features": [
+                            {"type": "LABEL_DETECTION", "maxResults": 15},
+                            {"type": "OBJECT_LOCALIZATION", "maxResults": 10},
+                            {"type": "TEXT_DETECTION"},
+                            {"type": "IMAGE_PROPERTIES"}
+                        ]
+                    }]
+                },
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                result = response.json()['responses'][0]
+                
+                labels = [label['description'] for label in result.get('labelAnnotations', [])]
+                objects = [obj['name'] for obj in result.get('localizedObjectAnnotations', [])]
+                texts = [text.get('description', '') for text in result.get('textAnnotations', [])[:3]]
+                colors_data = result.get('imagePropertiesAnnotation', {}).get('dominantColors', {}).get('colors', [])
+                
+                dominant_color = "neutral"
+                if colors_data:
+                    rgb = colors_data[0].get('color', {})
+                    dominant_color = rgb_to_color_name(rgb.get('red', 0), rgb.get('green', 0), rgb.get('blue', 0))
+                
+                return {
+                    "labels": labels[:10],
+                    "objects": objects[:5],
+                    "text": texts[:3],
+                    "colors": [dominant_color],
+                    "source": "Google Vision"
+                }
+    except:
+        pass
+    
+    # ============================================
+    # TIER 2: Amazon Rekognition (if AWS credentials exist)
+    # ============================================
+    try:
+        aws_key = st.secrets.get("aws", {}).get("access_key_id")
+        aws_secret = st.secrets.get("aws", {}).get("secret_access_key")
+        
+        if aws_key and aws_secret:
+            import boto3
+            
+            client = boto3.client(
+                'rekognition',
+                aws_access_key_id=aws_key,
+                aws_secret_access_key=aws_secret,
+                region_name='us-east-1'
+            )
+            
+            response = client.detect_labels(
+                Image={'Bytes': buffered.getvalue()},
+                MaxLabels=15,
+                MinConfidence=70
+            )
+            
+            labels = [label['Name'] for label in response['Labels']]
+            
+            # Try to detect text
+            try:
+                text_response = client.detect_text(Image={'Bytes': buffered.getvalue()})
+                texts = [text['DetectedText'] for text in text_response.get('TextDetections', [])[:3]]
+            except:
+                texts = []
+            
+            dominant_color = extract_dominant_color(image)
+            
+            return {
+                "labels": labels[:10],
+                "objects": [],
+                "text": texts,
+                "colors": [dominant_color],
+                "source": "Amazon Rekognition"
+            }
+    except:
+        pass
+    
+    # ============================================
+    # TIER 3: CLIP (Always works - no API key)
+    # ============================================
+    return analyze_with_clip(image)
+
+
+def analyze_with_clip(image):
+    """Fallback CLIP analysis"""
+    try:
+        buffered = io.BytesIO()
+        image.save(buffered, format="PNG")
+        img_bytes = buffered.getvalue()
+        
+        headers = {"Content-Type": "application/octet-stream"}
+        API_URL = "https://api-inference.huggingface.co/models/openai/clip-vit-base-patch32"
+        
+        # Detect what's in the image
+        categories = [
+            "person people human", "product item object", "food meal dish",
+            "landscape nature outdoor", "building architecture interior",
+            "technology device gadget", "clothing fashion apparel",
+            "art painting artwork", "animal pet", "vehicle car",
+            "event celebration party", "workspace office desk",
+            "text document screenshot", "logo brand graphic"
+        ]
+        
+        response = requests.post(
+            API_URL,
+            headers=headers,
+            data=img_bytes,
+            params={"candidate_labels": ",".join(categories)},
+            timeout=20
+        )
+        
+        labels = []
+        if response.status_code == 200:
+            result = response.json()
+            if isinstance(result, list) and len(result) > 0:
+                # Get top 5 detected categories
+                labels = [item['label'].split()[0] for item in result[:5]]
+        
+        # Get dominant color
+        dominant_color = extract_dominant_color(image)
+        
+        return {
+            "labels": labels if labels else ["product", "image", "content"],
+            "objects": [],
+            "text": [],
+            "colors": [dominant_color],
+            "source": "CLIP"
+        }
+        
+    except:
+        return {
+            "labels": ["product", "content"],
+            "objects": [],
+            "text": [],
+            "colors": ["neutral"],
+            "source": "fallback"
+        }
+
+
+def rgb_to_color_name(r, g, b):
+    """Convert RGB to color name"""
+    if r < 50 and g < 50 and b < 50:
+        return "black"
+    elif r > 200 and g > 200 and b > 200:
+        return "white"
+    elif r > g and r > b:
+        if r > 150 and g < 100:
+            return "red"
+        else:
+            return "orange"
+    elif g > r and g > b:
+        return "green"
+    elif b > r and b > g:
+        return "blue"
+    elif r > 150 and g > 100 and b < 100:
+        return "brown"
+    elif r > 150 and g > 150 and b < 100:
+        return "yellow"
+    elif r > 100 and g < 100 and b > 100:
+        return "purple"
+    else:
+        return "neutral"
+
+
+def extract_dominant_color(image):
+    """Extract dominant color from image"""
+    img_array = np.array(image.resize((100, 100)))
+    pixels = img_array.reshape(-1, 3)
+    avg_color = np.mean(pixels, axis=0).astype(int)
+    return rgb_to_color_name(avg_color[0], avg_color[1], avg_color[2])
 
 
 def init_groq():
@@ -404,8 +572,8 @@ def init_groq():
     return Groq(api_key=api_key)
 
 
-def generate_social_post(client, platform, source_content, tone="professional"):
-    """Generate platform-specific post - tries multiple models for reliability"""
+def generate_social_post(client, platform, source_content, image_analysis, tone="professional"):
+    """Generate platform-specific post using BOTH text content AND image analysis"""
     
     platform_specs = {
         "LinkedIn": {
@@ -448,9 +616,23 @@ def generate_social_post(client, platform, source_content, tone="professional"):
     
     spec = platform_specs[platform]
     
+    # Build context from BOTH sources
+    context_parts = [f"USER CONTENT: {source_content}"]
+    
+    if image_analysis:
+        context_parts.append(f"\nIMAGE CONTAINS: {', '.join(image_analysis['labels'][:5])}")
+        if image_analysis['objects']:
+            context_parts.append(f"OBJECTS DETECTED: {', '.join(image_analysis['objects'][:3])}")
+        if image_analysis['text']:
+            context_parts.append(f"TEXT IN IMAGE: {', '.join([t for t in image_analysis['text'] if t])}")
+        if image_analysis['colors'][0] != "neutral":
+            context_parts.append(f"DOMINANT COLOR: {image_analysis['colors'][0]}")
+    
+    full_context = "\n".join(context_parts)
+    
     prompt = f"""Create a {platform} post based on this content:
 
-SOURCE: {source_content}
+{full_context}
 
 PLATFORM: {platform}
 MAX LENGTH: {spec['max_length']} characters
@@ -459,20 +641,20 @@ FORMAT: {spec['format']}
 TONE: {tone}
 
 REQUIREMENTS:
-1. Write native {platform} content
+1. Write native {platform} content that references what's in the image
 2. Make it engaging and authentic
 3. Include {spec['hashtags']} relevant hashtags at the end
 4. Professional tone, no emojis
 5. Stay under {spec['max_length']} characters
+6. Be specific about the product/content shown
 
 Output ONLY the post content with hashtags."""
 
-    # Try multiple models in order of speed/reliability
+    # Try multiple models
     models = [
-        "llama-3.3-70b-versatile",      # Best quality
-        "llama-3.1-8b-instant",         # Fastest fallback
-        "gemma2-9b-it",                 # Alternative
-        "mixtral-8x7b-32768",           # Backup (if re-enabled)
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "gemma2-9b-it",
     ]
     
     for model_name in models:
@@ -482,45 +664,51 @@ Output ONLY the post content with hashtags."""
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7,
                 max_tokens=1000,
-                timeout=15  # Fast timeout - move to next model quickly
+                timeout=15
             )
             return response.choices[0].message.content.strip()
-        except Exception as e:
-            # Try next model
+        except:
             continue
     
-    # All models failed
     st.error(f"Could not generate {platform} post. Please try again.")
     return None
 
 
-def generate_platform_image(prompt, platform):
-    """Generate platform image - tries multiple APIs for speed and reliability"""
+def generate_platform_image(prompt, platform, image_analysis=None):
+    """Generate platform image with enhanced prompt from image analysis"""
     
     dimensions = {
         "LinkedIn": {"width": 1200, "height": 627},
         "Twitter": {"width": 1200, "height": 675},
         "Instagram": {"width": 1080, "height": 1080},
         "Facebook": {"width": 1200, "height": 630},
-        "Pinterest": {"width": 1000, "height": 1500},  # Vertical pin
+        "Pinterest": {"width": 1000, "height": 1500},
         "Threads": {"width": 1080, "height": 1080}
     }
     
     dims = dimensions[platform]
+    
+    # Enhance prompt with image analysis
     enhanced_prompt = f"{prompt}, professional, high quality, clean design, {platform} social media, modern, corporate"
     
-    # Try 1: Pollinations.ai (fastest when it works)
+    if image_analysis:
+        # Add detected elements to prompt
+        elements = ", ".join(image_analysis['labels'][:3])
+        color = image_analysis['colors'][0]
+        enhanced_prompt = f"{elements}, {color} tones, {enhanced_prompt}"
+    
+    # Try Pollinations
     try:
         encoded_prompt = urllib.parse.quote(enhanced_prompt)
         api_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={dims['width']}&height={dims['height']}&model=flux&nologo=true&enhance=true"
         
-        response = requests.get(api_url, timeout=45)  # Reduced timeout
+        response = requests.get(api_url, timeout=45)
         if response.status_code == 200:
             return Image.open(io.BytesIO(response.content))
     except:
         pass
     
-    # Try 2: Smaller/faster Pollinations model
+    # Try faster Pollinations
     try:
         api_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={dims['width']}&height={dims['height']}&nologo=true"
         response = requests.get(api_url, timeout=45)
@@ -529,7 +717,7 @@ def generate_platform_image(prompt, platform):
     except:
         pass
     
-    # Try 3: Hugging Face SDXL (more reliable, slower)
+    # Try HF SDXL
     try:
         API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
         payload = {"inputs": enhanced_prompt}
@@ -543,21 +731,6 @@ def generate_platform_image(prompt, platform):
     except:
         pass
     
-    # Try 4: Smaller HF model (faster)
-    try:
-        API_URL = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
-        payload = {"inputs": enhanced_prompt}
-        
-        response = requests.post(API_URL, json=payload, timeout=45)
-        
-        if response.status_code == 200:
-            image = Image.open(io.BytesIO(response.content))
-            image = image.resize((dims['width'], dims['height']), Image.Resampling.LANCZOS)
-            return image
-    except:
-        pass
-    
-    # All failed - return None but don't stop generation
     return None
 
 
@@ -621,22 +794,21 @@ def main():
             help="How should your posts sound?"
         )
         
-        # Always generate images - no checkbox
         generate_images = True
         
         st.markdown("---")
         st.markdown("### How It Works")
         st.markdown("""
-        1️⃣ Select platforms (main page)
+        1️⃣ Select platforms
         
-        2️⃣ Enter your content or upload image
+        2️⃣ Upload image (auto-analyzed!)
         
-        3️⃣ Click Generate 
+        3️⃣ Add description (optional)
         
-        4️⃣ Get ready-to-post content with images!
+        4️⃣ Get AI-generated posts
         
-        **Generation Time:**  
-        • 1-5 minutes (includes AI images)
+        **🔍 Computer Vision:**  
+        Detects objects, text, colors automatically!
         
         💡 **100% Free**
         """)
@@ -644,18 +816,18 @@ def main():
         st.markdown("---")
         st.markdown("### Supported Platforms")
         st.markdown("""
-        📱 **LinkedIn** - Professional network  
-        🐦 **Twitter** - Microblogging  
-        📸 **Instagram** - Visual social  
-        👥 **Facebook** - Social network  
-        📌 **Pinterest** - Visual discovery  
+        📱 **LinkedIn** - Professional  
+        🐦 **Twitter** - Microblog  
+        📸 **Instagram** - Visual  
+        👥 **Facebook** - Social  
+        📌 **Pinterest** - Discovery  
         🧵 **Threads** - Conversational  
         """)
     
     # Main content
     st.markdown('<h2 class="section-header">Input Content</h2>', unsafe_allow_html=True)
     
-    # Platform selector in MAIN area (not sidebar)
+    # Platform selector
     st.markdown("**Select Platforms:**")
     platforms = st.multiselect(
         "Choose which platforms to generate content for",
@@ -678,6 +850,7 @@ def main():
     
     source_content = None
     image_prompt = None
+    image_analysis = None
     
     if input_type == "Text/Topic":
         source_content = st.text_area(
@@ -691,14 +864,13 @@ def main():
         )
         
     elif input_type == "Product/Visual Content":
-        st.markdown("**Upload image and/or describe your product** (flexible - provide what you have!)")
+        st.markdown("**Upload image - AI will analyze it automatically!**")
         
         col1, col2 = st.columns([1, 1])
         
-        # Left column: Image upload
         with col1:
             uploaded_file = st.file_uploader(
-                "Upload image (optional)",
+                "Upload image",
                 type=["jpg", "jpeg", "png"],
                 help="Upload product photo, event pic, or any visual"
             )
@@ -706,21 +878,37 @@ def main():
             if uploaded_file:
                 image = Image.open(uploaded_file)
                 st.image(image, caption="Your Image", use_container_width=True)
+                
+                # AUTO-ANALYZE IMAGE
+                with st.spinner("🔍 Analyzing image with Computer Vision..."):
+                    image_analysis = analyze_image_with_vision(image)
+                
+                # Show analysis results
+                if image_analysis:
+                    st.markdown(f"""
+                    <div class="analysis-box">
+                        <h4>🔍 Image Analysis ({image_analysis['source']})</h4>
+                        <p><strong>Detected:</strong> {', '.join(image_analysis['labels'][:5])}</p>
+                        {f"<p><strong>Objects:</strong> {', '.join(image_analysis['objects'][:3])}</p>" if image_analysis['objects'] else ""}
+                        {f"<p><strong>Text:</strong> {', '.join([t for t in image_analysis['text'] if t][:2])}</p>" if image_analysis['text'] else ""}
+                        <p><strong>Color:</strong> {image_analysis['colors'][0]}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
         
-        # Right column: Product/content details
         with col2:
             product_name = st.text_input(
                 "Product/Topic Name (optional)",
-                placeholder="Example: MindFlow AI"
+                placeholder="Example: MindFlow AI Dashboard"
             )
             
             product_desc = st.text_area(
-                "Description (optional)",
-                placeholder="Describe your product, event, or what's in the image...",
-                height=200
+                "Additional Description (optional)",
+                placeholder="Add more context about what's in the image...",
+                height=200,
+                help="AI already analyzed the image - this is optional extra context"
             )
         
-        # Build source content from whatever they provided
+        # Build source content
         content_parts = []
         
         if product_name:
@@ -729,15 +917,13 @@ def main():
         if product_desc:
             content_parts.append(f"Description: {product_desc}")
         
-        if uploaded_file and not product_desc:
-            st.info("💡 Add a description to tell AI what to write about this image!")
+        # If they uploaded image but no text, use image analysis
+        if not content_parts and image_analysis:
+            content_parts.append(f"Image showing: {', '.join(image_analysis['labels'][:5])}")
         
         if content_parts:
             source_content = "\n\n".join(content_parts)
             image_prompt = product_desc[:200] if product_desc else product_name
-        elif uploaded_file:
-            # They uploaded image but no text - prompt for description
-            source_content = None
         else:
             source_content = None
     
@@ -754,17 +940,17 @@ def main():
             results = {}
             
             for platform in platforms:
-                status_text.text(f"📝 {platform}: Trying 4 AI models...")
+                status_text.text(f"📝 {platform}: Writing with image context...")
                 
-                post_content = generate_social_post(client, platform, source_content, tone.lower())
+                post_content = generate_social_post(client, platform, source_content, image_analysis, tone.lower())
                 current_step += 1
                 progress_bar.progress(current_step / total_steps)
                 
                 image = None
                 if generate_images:
-                    status_text.text(f"🎨 {platform} image: Trying 4 APIs (30-60s)...")
+                    status_text.text(f"🎨 {platform} image: Generating...")
                     img_prompt = image_prompt if image_prompt else source_content[:200]
-                    image = generate_platform_image(img_prompt, platform)
+                    image = generate_platform_image(img_prompt, platform, image_analysis)
                     current_step += 1
                     progress_bar.progress(current_step / total_steps)
                 
@@ -773,7 +959,7 @@ def main():
             progress_bar.empty()
             status_text.empty()
             
-            st.markdown('<div class="success-box">Content generated successfully</div>', unsafe_allow_html=True)
+            st.markdown('<div class="success-box">✅ Content generated with image analysis!</div>', unsafe_allow_html=True)
             
             # Stats
             col1, col2, col3 = st.columns(3)
@@ -809,7 +995,7 @@ def main():
                     display_platform_card(platform, results[platform]["content"], results[platform]["image"])
     
     else:
-        st.info("Select your platforms above, then enter content and click Generate!")
+        st.info("💡 Upload an image and AI will analyze it automatically, or enter text content!")
 
 
 if __name__ == "__main__":
