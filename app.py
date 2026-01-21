@@ -382,7 +382,7 @@ st.markdown("""
 st.markdown("""
 <div class="hero-header">
     <h1 class="hero-title">Amplify</h1>
-    <p class="hero-subtitle">Multiply your reach</p>
+    <p class="hero-subtitle">Multiply your reach across 6 platforms</p>
     <span class="hero-badge">Powered by Real AI Models</span>
 </div>
 """, unsafe_allow_html=True)
@@ -430,6 +430,18 @@ def generate_social_post(client, platform, source_content, tone="professional"):
             "max_length": 1000,
             "style": "community-focused, conversational, relatable",
             "format": "Personal angle, story, engagement question",
+            "hashtags": 3
+        },
+        "Pinterest": {
+            "max_length": 500,
+            "style": "visual-first, inspirational, discovery-focused",
+            "format": "Eye-catching description, benefits, visual appeal",
+            "hashtags": 20
+        },
+        "Threads": {
+            "max_length": 500,
+            "style": "casual, conversational, authentic",
+            "format": "Personal take, relatable insight, engagement",
             "hashtags": 3
         }
     }
@@ -489,7 +501,9 @@ def generate_platform_image(prompt, platform):
         "LinkedIn": {"width": 1200, "height": 627},
         "Twitter": {"width": 1200, "height": 675},
         "Instagram": {"width": 1080, "height": 1080},
-        "Facebook": {"width": 1200, "height": 630}
+        "Facebook": {"width": 1200, "height": 630},
+        "Pinterest": {"width": 1000, "height": 1500},  # Vertical pin
+        "Threads": {"width": 1080, "height": 1080}
     }
     
     dims = dimensions[platform]
@@ -551,10 +565,12 @@ def display_platform_card(platform, post_content, image):
     """Display platform card"""
     
     dimensions = {
-        "LinkedIn": "1200x627",
-        "Twitter": "1200x675",
-        "Instagram": "1080x1080",
-        "Facebook": "1200x630"
+        "LinkedIn": "1200×627",
+        "Twitter": "1200×675",
+        "Instagram": "1080×1080",
+        "Facebook": "1200×630",
+        "Pinterest": "1000×1500",
+        "Threads": "1080×1080"
     }
     
     st.markdown(f"""
@@ -620,9 +636,20 @@ def main():
         4️⃣ Get ready-to-post content with images!
         
         **Generation Time:**  
-        • 1-4 minutes (includes AI images)
+        • 1-5 minutes (includes AI images)
         
         💡 **100% Free**
+        """)
+        
+        st.markdown("---")
+        st.markdown("### Supported Platforms")
+        st.markdown("""
+        📱 **LinkedIn** - Professional network  
+        🐦 **Twitter** - Microblogging  
+        📸 **Instagram** - Visual social  
+        👥 **Facebook** - Social network  
+        📌 **Pinterest** - Visual discovery  
+        🧵 **Threads** - Conversational  
         """)
     
     # Main content
@@ -632,7 +659,7 @@ def main():
     st.markdown("**Select Platforms:**")
     platforms = st.multiselect(
         "Choose which platforms to generate content for",
-        ["LinkedIn", "Twitter", "Instagram", "Facebook"],
+        ["LinkedIn", "Twitter", "Instagram", "Facebook", "Pinterest", "Threads"],
         default=["LinkedIn", "Twitter", "Instagram", "Facebook"],
         help="Select the platforms where you want to post",
         label_visibility="collapsed"
